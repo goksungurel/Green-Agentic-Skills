@@ -76,6 +76,3 @@ Results are appended to `results/runs.csv` and trajectories to `results/trajecto
 - [ ] Statistical analysis across tasks
 - [ ] Write-up of findings
 
-## References
-
-- Tripathy, A., Harshit, C. P., & Vaidhyanathan, K. (2026). *SWEnergy: An Empirical Study on Energy Efficiency in Agentic Issue Resolution Frameworks with SLMs*. ACM Conferences.
