@@ -1,0 +1,1184 @@
+instance_id,repo,base_commit,problem_statement
+django__django-10914,django/django,e7fd69d051eaa67cb17f172a39b57253e9cb831a,"Set default FILE_UPLOAD_PERMISSION to 0o644.
+Description
+	
+Hello,
+As far as I can see, the ​File Uploads documentation page does not mention any permission issues.
+What I would like to see is a warning that in absence of explicitly configured FILE_UPLOAD_PERMISSIONS, the permissions for a file uploaded to FileSystemStorage might not be consistent depending on whether a MemoryUploadedFile or a TemporaryUploadedFile was used for temporary storage of the uploaded data (which, with the default FILE_UPLOAD_HANDLERS, in turn depends on the uploaded data size).
+The tempfile.NamedTemporaryFile + os.rename sequence causes the resulting file permissions to be 0o0600 on some systems (I experience it here on CentOS 7.4.1708 and Python 3.6.5). In all probability, the implementation of Python's built-in tempfile module explicitly sets such permissions for temporary files due to security considerations.
+I found mentions of this issue ​on GitHub, but did not manage to find any existing bug report in Django's bug tracker.
+"
+django__django-10924,django/django,bceadd2788dc2dad53eba0caae172bd8522fd483,"Allow FilePathField path to accept a callable.
+Description
+	
+I have a special case where I want to create a model containing the path to some local files on the server/dev machine. Seeing as the place where these files are stored is different on different machines I have the following:
+import os
+from django.conf import settings
+from django.db import models
+class LocalFiles(models.Model):
+	name = models.CharField(max_length=255)
+	file = models.FilePathField(path=os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'))
+Now when running manage.py makemigrations it will resolve the path based on the machine it is being run on. Eg: /home/<username>/server_files/example_dir
+I had to manually change the migration to include the os.path.join() part to not break this when running the migration on production/other machine.
+"
+django__django-11001,django/django,ef082ebb84f00e38af4e8880d04e8365c2766d34,"Incorrect removal of order_by clause created as multiline RawSQL
+Description
+	
+Hi.
+The SQLCompiler is ripping off one of my ""order by"" clause, because he ""thinks"" the clause was already ""seen"" (in SQLCompiler.get_order_by()). I'm using expressions written as multiline RawSQLs, which are similar but not the same. 
+The bug is located in SQLCompiler.get_order_by(), somewhere around line computing part of SQL query without ordering:
+without_ordering = self.ordering_parts.search(sql).group(1)
+The sql variable contains multiline sql. As a result, the self.ordering_parts regular expression is returning just a line containing ASC or DESC words. This line is added to seen set, and because my raw queries have identical last lines, only the first clasue is returing from SQLCompiler.get_order_by().
+As a quick/temporal fix I can suggest making sql variable clean of newline characters, like this:
+sql_oneline = ' '.join(sql.split('\n'))
+without_ordering = self.ordering_parts.search(sql_oneline).group(1)
+Note: beware of unicode (Py2.x u'') and EOL dragons (\r).
+Example of my query:
+	return MyModel.objects.all().order_by(
+		RawSQL('''
+			case when status in ('accepted', 'verification')
+				 then 2 else 1 end''', []).desc(),
+		RawSQL('''
+			case when status in ('accepted', 'verification')
+				 then (accepted_datetime, preferred_datetime)
+				 else null end''', []).asc(),
+		RawSQL('''
+			case when status not in ('accepted', 'verification')
+				 then (accepted_datetime, preferred_datetime, created_at)
+				 else null end''', []).desc())
+The ordering_parts.search is returing accordingly:
+'				 then 2 else 1 end)'
+'				 else null end'
+'				 else null end'
+Second RawSQL with a				 else null end part is removed from query.
+The fun thing is that the issue can be solved by workaround by adding a space or any other char to the last line. 
+So in case of RawSQL I can just say, that current implementation of avoiding duplicates in order by clause works only for special/rare cases (or does not work in all cases). 
+The bug filed here is about wrong identification of duplicates (because it compares only last line of SQL passed to order by clause).
+Hope my notes will help you fixing the issue. Sorry for my english.
+"
+django__django-11019,django/django,93e892bb645b16ebaf287beb5fe7f3ffe8d10408,"Merging 3 or more media objects can throw unnecessary MediaOrderConflictWarnings
+Description
+	
+Consider the following form definition, where text-editor-extras.js depends on text-editor.js but all other JS files are independent:
+from django import forms
+class ColorPicker(forms.Widget):
+	class Media:
+		js = ['color-picker.js']
+class SimpleTextWidget(forms.Widget):
+	class Media:
+		js = ['text-editor.js']
+class FancyTextWidget(forms.Widget):
+	class Media:
+		js = ['text-editor.js', 'text-editor-extras.js', 'color-picker.js']
+class MyForm(forms.Form):
+	background_color = forms.CharField(widget=ColorPicker())
+	intro = forms.CharField(widget=SimpleTextWidget())
+	body = forms.CharField(widget=FancyTextWidget())
+Django should be able to resolve the JS files for the final form into the order text-editor.js, text-editor-extras.js, color-picker.js. However, accessing MyForm().media results in:
+/projects/django/django/forms/widgets.py:145: MediaOrderConflictWarning: Detected duplicate Media files in an opposite order:
+text-editor-extras.js
+text-editor.js
+ MediaOrderConflictWarning,
+Media(css={}, js=['text-editor-extras.js', 'color-picker.js', 'text-editor.js'])
+The MediaOrderConflictWarning is a result of the order that the additions happen in: ColorPicker().media + SimpleTextWidget().media produces Media(css={}, js=['color-picker.js', 'text-editor.js']), which (wrongly) imposes the constraint that color-picker.js must appear before text-editor.js.
+The final result is particularly unintuitive here, as it's worse than the ""naïve"" result produced by Django 1.11 before order-checking was added (color-picker.js, text-editor.js, text-editor-extras.js), and the pair of files reported in the warning message seems wrong too (aren't color-picker.js and text-editor.js the wrong-ordered ones?)
+"
+django__django-11039,django/django,d5276398046ce4a102776a1e67dcac2884d80dfe,"sqlmigrate wraps it's outpout in BEGIN/COMMIT even if the database doesn't support transactional DDL
+Description
+	 
+		(last modified by Simon Charette)
+	 
+The migration executor only adds the outer BEGIN/COMMIT ​if the migration is atomic and ​the schema editor can rollback DDL but the current sqlmigrate logic only takes migration.atomic into consideration.
+The issue can be addressed by
+Changing sqlmigrate ​assignment of self.output_transaction to consider connection.features.can_rollback_ddl as well.
+Adding a test in tests/migrations/test_commands.py based on ​an existing test for non-atomic migrations that mocks connection.features.can_rollback_ddl to False instead of overdidding MIGRATION_MODULES to point to a non-atomic migration.
+I marked the ticket as easy picking because I included the above guidelines but feel free to uncheck it if you deem it inappropriate.
+"
+astropy__astropy-12907,astropy/astropy,d16bfe05a744909de4b27f5875fe0d4ed41ce607,"Modeling's `separability_matrix` does not compute separability correctly for nested CompoundModels
+Consider the following model:
+
+```python
+from astropy.modeling import models as m
+from astropy.modeling.separable import separability_matrix
+
+cm = m.Linear1D(10) & m.Linear1D(5)
+```
+
+It's separability matrix as you might expect is a diagonal:
+
+```python
+>>> separability_matrix(cm)
+array([[ True, False],
+       [False,  True]])
+```
+
+If I make the model more complex:
+```python
+>>> separability_matrix(m.Pix2Sky_TAN() & m.Linear1D(10) & m.Linear1D(5))
+array([[ True,  True, False, False],
+       [ True,  True, False, False],
+       [False, False,  True, False],
+       [False, False, False,  True]])
+```
+
+The output matrix is again, as expected, the outputs and inputs to the linear models are separable and independent of each other.
+
+If however, I nest these compound models:
+```python
+>>> separability_matrix(m.Pix2Sky_TAN() & cm)
+array([[ True,  True, False, False],
+       [ True,  True, False, False],
+       [False, False,  True,  True],
+       [False, False,  True,  True]])
+```
+Suddenly the inputs and outputs are no longer separable?
+
+This feels like a bug to me, but I might be missing something?
+"
+astropy__astropy-14182,astropy/astropy,a5917978be39d13cd90b517e1de4e7a539ffaa48,"Please support header rows in RestructuredText output
+### Description
+
+It would be great if the following would work:
+
+```Python
+>>> from astropy.table import QTable
+>>> import astropy.units as u
+>>> import sys
+>>> tbl = QTable({'wave': [350,950]*u.nm, 'response': [0.7, 1.2]*u.count})
+>>> tbl.write(sys.stdout,  format=""ascii.rst"")
+===== ========
+ wave response
+===== ========
+350.0      0.7
+950.0      1.2
+===== ========
+>>> tbl.write(sys.stdout,  format=""ascii.fixed_width"", header_rows=[""name"", ""unit""])
+|  wave | response |
+|    nm |       ct |
+| 350.0 |      0.7 |
+| 950.0 |      1.2 |
+>>> tbl.write(sys.stdout,  format=""ascii.rst"", header_rows=[""name"", ""unit""])
+Traceback (most recent call last):
+  File ""<stdin>"", line 1, in <module>
+  File ""/usr/lib/python3/dist-packages/astropy/table/connect.py"", line 129, in __call__
+    self.registry.write(instance, *args, **kwargs)
+  File ""/usr/lib/python3/dist-packages/astropy/io/registry/core.py"", line 369, in write
+    return writer(data, *args, **kwargs)
+  File ""/usr/lib/python3/dist-packages/astropy/io/ascii/connect.py"", line 26, in io_write
+    return write(table, filename, **kwargs)
+  File ""/usr/lib/python3/dist-packages/astropy/io/ascii/ui.py"", line 856, in write
+    writer = get_writer(Writer=Writer, fast_writer=fast_writer, **kwargs)
+  File ""/usr/lib/python3/dist-packages/astropy/io/ascii/ui.py"", line 800, in get_writer
+    writer = core._get_writer(Writer, fast_writer, **kwargs)
+  File ""/usr/lib/python3/dist-packages/astropy/io/ascii/core.py"", line 1719, in _get_writer
+    writer = Writer(**writer_kwargs)
+TypeError: RST.__init__() got an unexpected keyword argument 'header_rows'
+```
+
+
+### Additional context
+
+RestructuredText output is a great way to fill autogenerated documentation with content, so having this flexible makes the life easier `:-)`
+
+
+"
+astropy__astropy-14365,astropy/astropy,7269fa3e33e8d02485a647da91a5a2a60a06af61,"ascii.qdp Table format assumes QDP commands are upper case
+### Description
+
+ascii.qdp assumes that commands in a QDP file are upper case, for example, for errors they must be ""READ SERR 1 2"" whereas QDP itself is not case sensitive and case use ""read serr 1 2"". 
+
+As many QDP files are created by hand, the expectation that all commands be all-caps should be removed.
+
+### Expected behavior
+
+The following qdp file should read into a `Table` with errors, rather than crashing.
+```
+read serr 1 2 
+1 0.5 1 0.5
+```
+
+### How to Reproduce
+
+Create a QDP file:
+```
+> cat > test.qdp
+read serr 1 2 
+1 0.5 1 0.5
+<EOF>
+
+ > python
+Python 3.10.9 (main, Dec  7 2022, 02:03:23) [Clang 13.0.0 (clang-1300.0.29.30)] on darwin
+Type ""help"", ""copyright"", ""credits"" or ""license"" for more information.
+>>> from astropy.table import Table
+>>> Table.read('test.qdp',format='ascii.qdp')
+WARNING: table_id not specified. Reading the first available table [astropy.io.ascii.qdp]
+Traceback (most recent call last):
+...
+    raise ValueError(f'Unrecognized QDP line: {line}')
+ValueError: Unrecognized QDP line: read serr 1 2
+```
+
+Running ""qdp test.qdp"" works just fine.
+
+
+### Versions
+
+Python 3.10.9 (main, Dec  7 2022, 02:03:23) [Clang 13.0.0 (clang-1300.0.29.30)]
+astropy 5.1
+Numpy 1.24.1
+pyerfa 2.0.0.1
+Scipy 1.10.0
+Matplotlib 3.6.3
+
+"
+astropy__astropy-14995,astropy/astropy,b16c7d12ccbc7b2d20364b89fb44285bcbfede54,"In v5.3, NDDataRef mask propagation fails when one of the operand does not have a mask
+### Description
+
+This applies to v5.3. 
+
+It looks like when one of the operand does not have a mask, the mask propagation when doing arithmetic, in particular with `handle_mask=np.bitwise_or` fails.  This is not a problem in v5.2.
+
+I don't know enough about how all that works, but it seems from the error that the operand without a mask is set as a mask of None's and then the bitwise_or tries to operate on an integer and a None and fails.
+
+### Expected behavior
+
+When one of the operand does not have mask, the mask that exists should just be copied over to the output.  Or whatever was done in that situation in v5.2 where there's no problem.
+
+### How to Reproduce
+
+This is with v5.3.   With v5.2, there are no errors.
+
+```
+>>> import numpy as np
+>>> from astropy.nddata import NDDataRef
+
+>>> array = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+>>> mask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])
+
+>>> nref_nomask = NDDataRef(array)
+>>> nref_mask = NDDataRef(array, mask=mask)
+
+# multiply no mask by constant (no mask * no mask)
+>>> nref_nomask.multiply(1., handle_mask=np.bitwise_or).mask   # returns nothing, no mask,  OK
+
+# multiply no mask by itself (no mask * no mask)
+>>> nref_nomask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask # return nothing, no mask, OK
+
+# multiply mask by constant (mask * no mask)
+>>> nref_mask.multiply(1., handle_mask=np.bitwise_or).mask
+...
+TypeError: unsupported operand type(s) for |: 'int' and 'NoneType'
+
+# multiply mask by itself (mask * mask)
+>>> nref_mask.multiply(nref_mask, handle_mask=np.bitwise_or).mask
+array([[ 0,  1, 64],
+       [ 8,  0,  1],
+       [ 2,  1,  0]])
+
+# multiply mask by no mask (mask * no mask)
+>>> nref_mask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask
+...
+TypeError: unsupported operand type(s) for |: 'int' and 'NoneType'
+```
+
+
+### Versions
+
+>>> import sys; print(""Python"", sys.version)
+Python 3.10.11 | packaged by conda-forge | (main, May 10 2023, 19:07:22) [Clang 14.0.6 ]
+>>> import astropy; print(""astropy"", astropy.__version__)
+astropy 5.3
+>>> import numpy; print(""Numpy"", numpy.__version__)
+Numpy 1.24.3
+>>> import erfa; print(""pyerfa"", erfa.__version__)
+pyerfa 2.0.0.3
+>>> import scipy; print(""Scipy"", scipy.__version__)
+Scipy 1.10.1
+>>> import matplotlib; print(""Matplotlib"", matplotlib.__version__)
+Matplotlib 3.7.1
+
+"
+astropy__astropy-6938,astropy/astropy,c76af9ed6bb89bfba45b9f5bc1e635188278e2fa,"Possible bug in io.fits related to D exponents
+I came across the following code in ``fitsrec.py``:
+
+```python
+        # Replace exponent separator in floating point numbers
+        if 'D' in format:
+            output_field.replace(encode_ascii('E'), encode_ascii('D'))
+```
+
+I think this may be incorrect because as far as I can tell ``replace`` is not an in-place operation for ``chararray`` (it returns a copy). Commenting out this code doesn't cause any tests to fail so I think this code isn't being tested anyway.
+"
+matplotlib__matplotlib-18869,matplotlib/matplotlib,b7d05919865fc0c37a0164cf467d5d5513bd0ede,"Add easily comparable version info to toplevel
+<!--
+Welcome! Thanks for thinking of a way to improve Matplotlib.
+
+
+Before creating a new feature request please search the issues for relevant feature requests.
+-->
+
+### Problem
+
+Currently matplotlib only exposes `__version__`.  For quick version checks, exposing either a `version_info` tuple (which can be compared with other tuples) or a `LooseVersion` instance (which can be properly compared with other strings) would be a small usability improvement.
+
+(In practice I guess boring string comparisons will work just fine until we hit mpl 3.10 or 4.10 which is unlikely to happen soon, but that feels quite dirty :))
+<!--
+Provide a clear and concise description of the problem this feature will solve. 
+
+For example:
+* I'm always frustrated when [...] because [...]
+* I would like it if [...] happened when I [...] because [...]
+* Here is a sample image of what I am asking for [...]
+-->
+
+### Proposed Solution
+
+I guess I slightly prefer `LooseVersion`, but exposing just a `version_info` tuple is much more common in other packages (and perhaps simpler to understand).  The hardest(?) part is probably just bikeshedding this point :-)
+<!-- Provide a clear and concise description of a way to accomplish what you want. For example:
+
+* Add an option so that when [...]  [...] will happen
+ -->
+
+### Additional context and prior art
+
+`version_info` is a pretty common thing (citation needed).
+<!-- Add any other context or screenshots about the feature request here. You can also include links to examples of other programs that have something similar to your request. For example:
+
+* Another project [...] solved this by [...]
+-->
+
+"
+matplotlib__matplotlib-22711,matplotlib/matplotlib,f670fe78795b18eb1118707721852209cd77ad51,"[Bug]: cannot give init value for RangeSlider widget
+### Bug summary
+
+I think `xy[4] = .25, val[0]` should be commented in /matplotlib/widgets. py"", line 915, in set_val
+as it prevents to initialized value for RangeSlider
+
+### Code for reproduction
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.widgets import RangeSlider
+
+# generate a fake image
+np.random.seed(19680801)
+N = 128
+img = np.random.randn(N, N)
+
+fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+fig.subplots_adjust(bottom=0.25)
+
+im = axs[0].imshow(img)
+axs[1].hist(img.flatten(), bins='auto')
+axs[1].set_title('Histogram of pixel intensities')
+
+# Create the RangeSlider
+slider_ax = fig.add_axes([0.20, 0.1, 0.60, 0.03])
+slider = RangeSlider(slider_ax, ""Threshold"", img.min(), img.max(),valinit=[0.0,0.0])
+
+# Create the Vertical lines on the histogram
+lower_limit_line = axs[1].axvline(slider.val[0], color='k')
+upper_limit_line = axs[1].axvline(slider.val[1], color='k')
+
+
+def update(val):
+    # The val passed to a callback by the RangeSlider will
+    # be a tuple of (min, max)
+
+    # Update the image's colormap
+    im.norm.vmin = val[0]
+    im.norm.vmax = val[1]
+
+    # Update the position of the vertical lines
+    lower_limit_line.set_xdata([val[0], val[0]])
+    upper_limit_line.set_xdata([val[1], val[1]])
+
+    # Redraw the figure to ensure it updates
+    fig.canvas.draw_idle()
+
+
+slider.on_changed(update)
+plt.show()
+```
+
+
+### Actual outcome
+
+```python
+  File ""<ipython-input-52-b704c53e18d4>"", line 19, in <module>
+    slider = RangeSlider(slider_ax, ""Threshold"", img.min(), img.max(),valinit=[0.0,0.0])
+
+  File ""/Users/Vincent/opt/anaconda3/envs/py38/lib/python3.8/site-packages/matplotlib/widgets.py"", line 778, in __init__
+    self.set_val(valinit)
+
+  File ""/Users/Vincent/opt/anaconda3/envs/py38/lib/python3.8/site-packages/matplotlib/widgets.py"", line 915, in set_val
+    xy[4] = val[0], .25
+
+IndexError: index 4 is out of bounds for axis 0 with size 4
+```
+
+### Expected outcome
+
+range slider with user initial values
+
+### Additional information
+
+error can be removed by commenting this line
+```python
+
+    def set_val(self, val):
+        """"""
+        Set slider value to *val*.
+
+        Parameters
+        ----------
+        val : tuple or array-like of float
+        """"""
+        val = np.sort(np.asanyarray(val))
+        if val.shape != (2,):
+            raise ValueError(
+                f""val must have shape (2,) but has shape {val.shape}""
+            )
+        val[0] = self._min_in_bounds(val[0])
+        val[1] = self._max_in_bounds(val[1])
+        xy = self.poly.xy
+        if self.orientation == ""vertical"":
+            xy[0] = .25, val[0]
+            xy[1] = .25, val[1]
+            xy[2] = .75, val[1]
+            xy[3] = .75, val[0]
+            # xy[4] = .25, val[0]
+        else:
+            xy[0] = val[0], .25
+            xy[1] = val[0], .75
+            xy[2] = val[1], .75
+            xy[3] = val[1], .25
+            # xy[4] = val[0], .25
+        self.poly.xy = xy
+        self.valtext.set_text(self._format(val))
+        if self.drawon:
+            self.ax.figure.canvas.draw_idle()
+        self.val = val
+        if self.eventson:
+            self._observers.process(""changed"", val)
+
+```
+
+### Operating system
+
+OSX
+
+### Matplotlib Version
+
+3.5.1
+
+### Matplotlib Backend
+
+_No response_
+
+### Python version
+
+3.8
+
+### Jupyter version
+
+_No response_
+
+### Installation
+
+pip
+"
+matplotlib__matplotlib-22835,matplotlib/matplotlib,c33557d120eefe3148ebfcf2e758ff2357966000,"[Bug]: scalar mappable format_cursor_data crashes on BoundarNorm
+### Bug summary
+
+In 3.5.0 if you do:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib as mpl
+
+fig, ax = plt.subplots()
+norm = mpl.colors.BoundaryNorm(np.linspace(-4, 4, 5), 256)
+X = np.random.randn(10, 10)
+pc = ax.imshow(X, cmap='RdBu_r', norm=norm)
+```
+
+and mouse over the image, it crashes with
+
+```
+File ""/Users/jklymak/matplotlib/lib/matplotlib/artist.py"", line 1282, in format_cursor_data
+    neighbors = self.norm.inverse(
+  File ""/Users/jklymak/matplotlib/lib/matplotlib/colors.py"", line 1829, in inverse
+    raise ValueError(""BoundaryNorm is not invertible"")
+ValueError: BoundaryNorm is not invertible
+```
+
+and interaction stops.  
+
+Not sure if we should have a special check here, a try-except, or actually just make BoundaryNorm approximately invertible.  
+
+
+### Matplotlib Version
+
+main 3.5.0
+
+
+[Bug]: scalar mappable format_cursor_data crashes on BoundarNorm
+### Bug summary
+
+In 3.5.0 if you do:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib as mpl
+
+fig, ax = plt.subplots()
+norm = mpl.colors.BoundaryNorm(np.linspace(-4, 4, 5), 256)
+X = np.random.randn(10, 10)
+pc = ax.imshow(X, cmap='RdBu_r', norm=norm)
+```
+
+and mouse over the image, it crashes with
+
+```
+File ""/Users/jklymak/matplotlib/lib/matplotlib/artist.py"", line 1282, in format_cursor_data
+    neighbors = self.norm.inverse(
+  File ""/Users/jklymak/matplotlib/lib/matplotlib/colors.py"", line 1829, in inverse
+    raise ValueError(""BoundaryNorm is not invertible"")
+ValueError: BoundaryNorm is not invertible
+```
+
+and interaction stops.  
+
+Not sure if we should have a special check here, a try-except, or actually just make BoundaryNorm approximately invertible.  
+
+
+### Matplotlib Version
+
+main 3.5.0
+
+
+"
+matplotlib__matplotlib-23299,matplotlib/matplotlib,3eadeacc06c9f2ddcdac6ae39819faa9fbee9e39,"[Bug]: get_backend() clears figures from Gcf.figs if they were created under rc_context
+### Bug summary
+
+calling `matplotlib.get_backend()` removes all figures from `Gcf` if the *first* figure in `Gcf.figs` was created in an `rc_context`.
+
+### Code for reproduction
+
+```python
+import matplotlib.pyplot as plt
+from matplotlib import get_backend, rc_context
+
+# fig1 = plt.figure()  # <- UNCOMMENT THIS LINE AND IT WILL WORK
+# plt.ion()            # <- ALTERNATIVELY, UNCOMMENT THIS LINE AND IT WILL ALSO WORK
+with rc_context():
+    fig2 = plt.figure()
+before = f'{id(plt._pylab_helpers.Gcf)} {plt._pylab_helpers.Gcf.figs!r}'
+get_backend()
+after = f'{id(plt._pylab_helpers.Gcf)} {plt._pylab_helpers.Gcf.figs!r}'
+
+assert before == after, '\n' + before + '\n' + after
+```
+
+
+### Actual outcome
+
+```
+---------------------------------------------------------------------------
+AssertionError                            Traceback (most recent call last)
+<ipython-input-1-fa4d099aa289> in <cell line: 11>()
+      9 after = f'{id(plt._pylab_helpers.Gcf)} {plt._pylab_helpers.Gcf.figs!r}'
+     10 
+---> 11 assert before == after, '\n' + before + '\n' + after
+     12 
+
+AssertionError: 
+94453354309744 OrderedDict([(1, <matplotlib.backends.backend_qt.FigureManagerQT object at 0x7fb33e26c220>)])
+94453354309744 OrderedDict()
+```
+
+### Expected outcome
+
+The figure should not be missing from `Gcf`.  Consequences of this are, e.g, `plt.close(fig2)` doesn't work because `Gcf.destroy_fig()` can't find it.
+
+### Additional information
+
+_No response_
+
+### Operating system
+
+Xubuntu
+
+### Matplotlib Version
+
+3.5.2
+
+### Matplotlib Backend
+
+QtAgg
+
+### Python version
+
+Python 3.10.4
+
+### Jupyter version
+
+n/a
+
+### Installation
+
+conda
+"
+matplotlib__matplotlib-23314,matplotlib/matplotlib,97fc1154992f64cfb2f86321155a7404efeb2d8a,"[Bug]: set_visible() not working for 3d projection 
+### Bug summary
+
+in the subplot projection=""3d"" the set_visible function doesn't work even if the value is set to False
+
+### Code for reproduction
+
+```python
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+
+fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': '3d'})
+ax1.scatter(1,1,1)
+ax2.scatter(1,1,1, c='r')
+ax1.set_visible(False)
+
+plt.show()
+# Thanks Tim for your help! 
+```
+
+
+### Actual outcome
+
+the subplot remains visible which should not happen if the value is set to False
+
+### Expected outcome
+
+the subplot is not visible if the value is set to False
+
+### Additional information
+
+_No response_
+
+### Operating system
+
+_No response_
+
+### Matplotlib Version
+
+3.4.2
+
+### Matplotlib Backend
+
+Qt5Agg
+
+### Python version
+
+3.8.10
+
+### Jupyter version
+
+_No response_
+
+### Installation
+
+_No response_
+"
+psf__requests-1963,psf/requests,110048f9837f8441ea536804115e80b69f400277,"`Session.resolve_redirects` copies the original request for all subsequent requests, can cause incorrect method selection
+Consider the following redirection chain:
+
+```
+POST /do_something HTTP/1.1
+Host: server.example.com
+...
+
+HTTP/1.1 303 See Other
+Location: /new_thing_1513
+
+GET /new_thing_1513
+Host: server.example.com
+...
+
+HTTP/1.1 307 Temporary Redirect
+Location: //failover.example.com/new_thing_1513
+```
+
+The intermediate 303 See Other has caused the POST to be converted to
+a GET.  The subsequent 307 should preserve the GET.  However, because
+`Session.resolve_redirects` starts each iteration by copying the _original_
+request object, Requests will issue a POST!
+
+"
+psf__requests-2148,psf/requests,fe693c492242ae532211e0c173324f09ca8cf227,"socket.error exception not caught/wrapped in a requests exception (ConnectionError perhaps?)
+I just noticed a case where I had a socket reset on me, and was raised to me as a raw socket error as opposed to something like a requests.exceptions.ConnectionError:
+
+```
+  File ""/home/rtdean/***/***/***/***/***/***.py"", line 67, in dir_parse
+    root = ElementTree.fromstring(response.text)
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/site-packages/requests-2.3.0-py2.7.egg/requests/models.py"", line 721, in text
+    if not self.content:
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/site-packages/requests-2.3.0-py2.7.egg/requests/models.py"", line 694, in content
+    self._content = bytes().join(self.iter_content(CONTENT_CHUNK_SIZE)) or bytes()
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/site-packages/requests-2.3.0-py2.7.egg/requests/models.py"", line 627, in generate
+    for chunk in self.raw.stream(chunk_size, decode_content=True):
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/site-packages/requests-2.3.0-py2.7.egg/requests/packages/urllib3/response.py"", line 240, in stream
+    data = self.read(amt=amt, decode_content=decode_content)
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/site-packages/requests-2.3.0-py2.7.egg/requests/packages/urllib3/response.py"", line 187, in read
+    data = self._fp.read(amt)
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/httplib.py"", line 543, in read
+    return self._read_chunked(amt)
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/httplib.py"", line 612, in _read_chunked
+    value.append(self._safe_read(chunk_left))
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/httplib.py"", line 658, in _safe_read
+    chunk = self.fp.read(min(amt, MAXAMOUNT))
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/socket.py"", line 380, in read
+    data = self._sock.recv(left)
+  File ""/home/rtdean/.pyenv/versions/2.7.6/lib/python2.7/site-packages/gevent-1.0.1-py2.7-linux-x86_64.egg/gevent/socket.py"", line 385, in recv
+    return sock.recv(*args)
+socket.error: [Errno 104] Connection reset by peer
+```
+
+Not sure if this is by accident or design... in general, I guess I'd expect a requests exception when using requests, but I can start looking for socket errors and the like as well.
+
+"
+psf__requests-2317,psf/requests,091991be0da19de9108dbe5e3752917fea3d7fdc,"method = builtin_str(method) problem
+In requests/sessions.py is a command:
+
+method = builtin_str(method)
+Converts method from
+b’GET’
+to
+""b'GET’""
+
+Which is the literal string, no longer a binary string.  When requests tries to use the method ""b'GET’”, it gets a 404 Not Found response.
+
+I am using python3.4 and python-neutronclient (2.3.9) with requests (2.4.3).  neutronclient is broken because it uses this ""args = utils.safe_encode_list(args)"" command which converts all the values to binary string, including method.
+
+I'm not sure if this is a bug with neutronclient or a bug with requests, but I'm starting here.  Seems if requests handled the method value being a binary string, we wouldn't have any problem.
+
+Also, I tried in python2.6 and this bug doesn't exist there. Some difference between 2.6 and 3.4 makes this not work right.
+
+"
+psf__requests-2674,psf/requests,0be38a0c37c59c4b66ce908731da15b401655113,"urllib3 exceptions passing through requests API
+I don't know if it's a design goal of requests to hide urllib3's exceptions and wrap them around requests.exceptions types.
+
+(If it's not IMHO it should be, but that's another discussion)
+
+If it is, I have at least two of them passing through that I have to catch in addition to requests' exceptions. They are requests.packages.urllib3.exceptions.DecodeError and requests.packages.urllib3.exceptions.TimeoutError (this one I get when a proxy timeouts)
+
+Thanks!
+
+"
+psf__requests-3362,psf/requests,36453b95b13079296776d11b09cab2567ea3e703,"Uncertain about content/text vs iter_content(decode_unicode=True/False)
+When requesting an application/json document, I'm seeing `next(r.iter_content(16*1024, decode_unicode=True))` returning bytes, whereas `r.text` returns unicode. My understanding was that both should return a unicode object. In essence, I thought ""iter_content"" was equivalent to ""iter_text"" when decode_unicode was True. Have I misunderstood something? I can provide an example if needed.
+
+For reference, I'm using python 3.5.1 and requests 2.10.0.
+
+Thanks!
+
+"
+mwaskom__seaborn-2848,mwaskom/seaborn,94621cef29f80282436d73e8d2c0aa76dab81273,"pairplot fails with hue_order not containing all hue values in seaborn 0.11.1
+In seaborn < 0.11, one could plot only a subset of the values in the hue column, by passing a hue_order list containing only the desired values. Points with hue values not in the list were simply not plotted.
+```python
+iris = sns.load_dataset(""iris"")`
+# The hue column contains three different species; here we want to plot two
+sns.pairplot(iris, hue=""species"", hue_order=[""setosa"", ""versicolor""])
+```
+
+This no longer works in 0.11.1. Passing a hue_order list that does not contain some of the values in the hue column raises a long, ugly error traceback. The first exception arises in seaborn/_core.py:
+```
+TypeError: ufunc 'isnan' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
+```
+seaborn version: 0.11.1
+matplotlib version: 3.3.2
+matplotlib backends: MacOSX, Agg or jupyter notebook inline."
+mwaskom__seaborn-3010,mwaskom/seaborn,0f5a013e2cf43562deec3b879458e59a73853813,"PolyFit is not robust to missing data
+```python
+so.Plot([1, 2, 3, None, 4], [1, 2, 3, 4, 5]).add(so.Line(), so.PolyFit())
+```
+
+<details><summary>Traceback</summary>
+
+```python-traceback
+---------------------------------------------------------------------------
+LinAlgError                               Traceback (most recent call last)
+File ~/miniconda3/envs/seaborn-py39-latest/lib/python3.9/site-packages/IPython/core/formatters.py:343, in BaseFormatter.__call__(self, obj)
+    341     method = get_real_method(obj, self.print_method)
+    342     if method is not None:
+--> 343         return method()
+    344     return None
+    345 else:
+
+File ~/code/seaborn/seaborn/_core/plot.py:265, in Plot._repr_png_(self)
+    263 def _repr_png_(self) -> tuple[bytes, dict[str, float]]:
+--> 265     return self.plot()._repr_png_()
+
+File ~/code/seaborn/seaborn/_core/plot.py:804, in Plot.plot(self, pyplot)
+    800 """"""
+    801 Compile the plot spec and return the Plotter object.
+    802 """"""
+    803 with theme_context(self._theme_with_defaults()):
+--> 804     return self._plot(pyplot)
+
+File ~/code/seaborn/seaborn/_core/plot.py:822, in Plot._plot(self, pyplot)
+    819 plotter._setup_scales(self, common, layers, coord_vars)
+    821 # Apply statistical transform(s)
+--> 822 plotter._compute_stats(self, layers)
+    824 # Process scale spec for semantic variables and coordinates computed by stat
+    825 plotter._setup_scales(self, common, layers)
+
+File ~/code/seaborn/seaborn/_core/plot.py:1110, in Plotter._compute_stats(self, spec, layers)
+   1108     grouper = grouping_vars
+   1109 groupby = GroupBy(grouper)
+-> 1110 res = stat(df, groupby, orient, scales)
+   1112 if pair_vars:
+   1113     data.frames[coord_vars] = res
+
+File ~/code/seaborn/seaborn/_stats/regression.py:41, in PolyFit.__call__(self, data, groupby, orient, scales)
+     39 def __call__(self, data, groupby, orient, scales):
+---> 41     return groupby.apply(data, self._fit_predict)
+
+File ~/code/seaborn/seaborn/_core/groupby.py:109, in GroupBy.apply(self, data, func, *args, **kwargs)
+    106 grouper, groups = self._get_groups(data)
+    108 if not grouper:
+--> 109     return self._reorder_columns(func(data, *args, **kwargs), data)
+    111 parts = {}
+    112 for key, part_df in data.groupby(grouper, sort=False):
+
+File ~/code/seaborn/seaborn/_stats/regression.py:30, in PolyFit._fit_predict(self, data)
+     28     xx = yy = []
+     29 else:
+---> 30     p = np.polyfit(x, y, self.order)
+     31     xx = np.linspace(x.min(), x.max(), self.gridsize)
+     32     yy = np.polyval(p, xx)
+
+File <__array_function__ internals>:180, in polyfit(*args, **kwargs)
+
+File ~/miniconda3/envs/seaborn-py39-latest/lib/python3.9/site-packages/numpy/lib/polynomial.py:668, in polyfit(x, y, deg, rcond, full, w, cov)
+    666 scale = NX.sqrt((lhs*lhs).sum(axis=0))
+    667 lhs /= scale
+--> 668 c, resids, rank, s = lstsq(lhs, rhs, rcond)
+    669 c = (c.T/scale).T  # broadcast scale coefficients
+    671 # warn on rank reduction, which indicates an ill conditioned matrix
+
+File <__array_function__ internals>:180, in lstsq(*args, **kwargs)
+
+File ~/miniconda3/envs/seaborn-py39-latest/lib/python3.9/site-packages/numpy/linalg/linalg.py:2300, in lstsq(a, b, rcond)
+   2297 if n_rhs == 0:
+   2298     # lapack can't handle n_rhs = 0 - so allocate the array one larger in that axis
+   2299     b = zeros(b.shape[:-2] + (m, n_rhs + 1), dtype=b.dtype)
+-> 2300 x, resids, rank, s = gufunc(a, b, rcond, signature=signature, extobj=extobj)
+   2301 if m == 0:
+   2302     x[...] = 0
+
+File ~/miniconda3/envs/seaborn-py39-latest/lib/python3.9/site-packages/numpy/linalg/linalg.py:101, in _raise_linalgerror_lstsq(err, flag)
+    100 def _raise_linalgerror_lstsq(err, flag):
+--> 101     raise LinAlgError(""SVD did not converge in Linear Least Squares"")
+
+LinAlgError: SVD did not converge in Linear Least Squares
+
+```
+
+</details>
+"
+mwaskom__seaborn-3190,mwaskom/seaborn,4a9e54962a29c12a8b103d75f838e0e795a6974d,"Color mapping fails with boolean data
+```python
+so.Plot([""a"", ""b""], [1, 2], color=[True, False]).add(so.Bar())
+```
+```python-traceback
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+...
+File ~/code/seaborn/seaborn/_core/plot.py:841, in Plot._plot(self, pyplot)
+    838 plotter._compute_stats(self, layers)
+    840 # Process scale spec for semantic variables and coordinates computed by stat
+--> 841 plotter._setup_scales(self, common, layers)
+    843 # TODO Remove these after updating other methods
+    844 # ---- Maybe have debug= param that attaches these when True?
+    845 plotter._data = common
+
+File ~/code/seaborn/seaborn/_core/plot.py:1252, in Plotter._setup_scales(self, p, common, layers, variables)
+   1250     self._scales[var] = Scale._identity()
+   1251 else:
+-> 1252     self._scales[var] = scale._setup(var_df[var], prop)
+   1254 # Everything below here applies only to coordinate variables
+   1255 # We additionally skip it when we're working with a value
+   1256 # that is derived from a coordinate we've already processed.
+   1257 # e.g., the Stat consumed y and added ymin/ymax. In that case,
+   1258 # we've already setup the y scale and ymin/max are in scale space.
+   1259 if axis is None or (var != coord and coord in p._variables):
+
+File ~/code/seaborn/seaborn/_core/scales.py:351, in ContinuousBase._setup(self, data, prop, axis)
+    349 vmin, vmax = axis.convert_units((vmin, vmax))
+    350 a = forward(vmin)
+--> 351 b = forward(vmax) - forward(vmin)
+    353 def normalize(x):
+    354     return (x - a) / b
+
+TypeError: numpy boolean subtract, the `-` operator, is not supported, use the bitwise_xor, the `^` operator, or the logical_xor function instead.
+```
+"
+mwaskom__seaborn-3407,mwaskom/seaborn,515286e02be3e4c0ff2ef4addb34a53c4a676ee4,"pairplot raises KeyError with MultiIndex DataFrame
+When trying to pairplot a MultiIndex DataFrame, `pairplot` raises a `KeyError`:
+
+MRE:
+
+```python
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+
+data = {
+    (""A"", ""1""): np.random.rand(100),
+    (""A"", ""2""): np.random.rand(100),
+    (""B"", ""1""): np.random.rand(100),
+    (""B"", ""2""): np.random.rand(100),
+}
+df = pd.DataFrame(data)
+sns.pairplot(df)
+```
+
+Output:
+
+```
+[c:\Users\KLuu\anaconda3\lib\site-packages\seaborn\axisgrid.py](file:///C:/Users/KLuu/anaconda3/lib/site-packages/seaborn/axisgrid.py) in pairplot(data, hue, hue_order, palette, vars, x_vars, y_vars, kind, diag_kind, markers, height, aspect, corner, dropna, plot_kws, diag_kws, grid_kws, size)
+   2142     diag_kws.setdefault(""legend"", False)
+   2143     if diag_kind == ""hist"":
+-> 2144         grid.map_diag(histplot, **diag_kws)
+   2145     elif diag_kind == ""kde"":
+   2146         diag_kws.setdefault(""fill"", True)
+
+[c:\Users\KLuu\anaconda3\lib\site-packages\seaborn\axisgrid.py](file:///C:/Users/KLuu/anaconda3/lib/site-packages/seaborn/axisgrid.py) in map_diag(self, func, **kwargs)
+   1488                 plt.sca(ax)
+   1489 
+-> 1490             vector = self.data[var]
+   1491             if self._hue_var is not None:
+   1492                 hue = self.data[self._hue_var]
+
+[c:\Users\KLuu\anaconda3\lib\site-packages\pandas\core\frame.py](file:///C:/Users/KLuu/anaconda3/lib/site-packages/pandas/core/frame.py) in __getitem__(self, key)
+   3765             if is_iterator(key):
+   3766                 key = list(key)
+-> 3767             indexer = self.columns._get_indexer_strict(key, ""columns"")[1]
+   3768 
+   3769         # take() does not accept boolean indexers
+
+[c:\Users\KLuu\anaconda3\lib\site-packages\pandas\core\indexes\multi.py](file:///C:/Users/KLuu/anaconda3/lib/site-packages/pandas/core/indexes/multi.py) in _get_indexer_strict(self, key, axis_name)
+   2534             indexer = self._get_indexer_level_0(keyarr)
+   2535 
+-> 2536             self._raise_if_missing(key, indexer, axis_name)
+   2537             return self[indexer], indexer
+   2538 
+
+[c:\Users\KLuu\anaconda3\lib\site-packages\pandas\core\indexes\multi.py](file:///C:/Users/KLuu/anaconda3/lib/site-packages/pandas/core/indexes/multi.py) in _raise_if_missing(self, key, indexer, axis_name)
+   2552                 cmask = check == -1
+   2553                 if cmask.any():
+-> 2554                     raise KeyError(f""{keyarr[cmask]} not in index"")
+   2555                 # We get here when levels still contain values which are not
+   2556                 # actually in Index anymore
+
+KeyError: ""['1'] not in index""
+```
+
+A workaround is to ""flatten"" the columns:
+
+```python
+df.columns = ["""".join(column) for column in df.columns]
+```
+"
+pallets__flask-4045,pallets/flask,d8c37f43724cd9fb0870f77877b7c4c7e38a19e0,"Raise error when blueprint name contains a dot
+This is required since every dot is now significant since blueprints can be nested. An error was already added for endpoint names in 1.0, but should have been added for this as well.
+"
+pallets__flask-4992,pallets/flask,4c288bc97ea371817199908d0d9b12de9dae327e,"Add a file mode parameter to flask.Config.from_file()
+Python 3.11 introduced native TOML support with the `tomllib` package. This could work nicely with the `flask.Config.from_file()` method as an easy way to load TOML config files:
+
+```python
+app.config.from_file(""config.toml"", tomllib.load)
+```
+
+However, `tomllib.load()` takes an object readable in binary mode, while `flask.Config.from_file()` opens a file in text mode, resulting in this error:
+
+```
+TypeError: File must be opened in binary mode, e.g. use `open('foo.toml', 'rb')`
+```
+
+We can get around this with a more verbose expression, like loading from a file opened with the built-in `open()` function and passing the `dict` to `app.Config.from_mapping()`:
+
+```python
+# We have to repeat the path joining that from_file() does
+with open(os.path.join(app.config.root_path, ""config.toml""), ""rb"") as file:
+    app.config.from_mapping(tomllib.load(file))
+```
+
+But adding a file mode parameter to `flask.Config.from_file()` would enable the use of a simpler expression. E.g.:
+
+```python
+app.config.from_file(""config.toml"", tomllib.load, mode=""b"")
+```
+
+"
+pallets__flask-5063,pallets/flask,182ce3dd15dfa3537391c3efaf9c3ff407d134d4,"Flask routes to return domain/sub-domains information
+Currently when checking **flask routes** it provides all routes but **it is no way to see which routes are assigned to which subdomain**.
+
+**Default server name:**
+SERVER_NAME: 'test.local'
+
+**Domains (sub-domains):**
+test.test.local
+admin.test.local
+test.local
+
+**Adding blueprints:**
+app.register_blueprint(admin_blueprint,url_prefix='',subdomain='admin')
+app.register_blueprint(test_subdomain_blueprint,url_prefix='',subdomain='test')
+
+
+```
+$ flask routes
+ * Tip: There are .env or .flaskenv files present. Do ""pip install python-dotenv"" to use them.
+Endpoint                                                 Methods    Rule
+-------------------------------------------------------  ---------  ------------------------------------------------
+admin_blueprint.home                                      GET        /home
+test_subdomain_blueprint.home                             GET        /home
+static                                                    GET        /static/<path:filename>
+...
+```
+
+
+**Feature request**
+It will be good to see something like below (that will make more clear which route for which subdomain, because now need to go and check configuration).
+**If it is not possible to fix routes**, can you add or tell which method(s) should be used to get below information from flask? 
+
+```
+$ flask routes
+ * Tip: There are .env or .flaskenv files present. Do ""pip install python-dotenv"" to use them.
+Domain                Endpoint                                             Methods    Rule
+-----------------   ----------------------------------------------------  ----------  ------------------------------------------------
+admin.test.local     admin_blueprint.home                                  GET        /home
+test.test.local      test_subdomain_blueprint.home                         GET        /home
+test.local           static                                                GET        /static/<path:filename>
+...
+```
+
+"
+pydata__xarray-3364,pydata/xarray,863e49066ca4d61c9adfe62aca3bf21b90e1af8c,"Ignore missing variables when concatenating datasets?
+Several users (@raj-kesavan, @richardotis, now myself) have wondered about how to concatenate xray Datasets with different variables.
+
+With the current `xray.concat`, you need to awkwardly create dummy variables filled with `NaN` in datasets that don't have them (or drop mismatched variables entirely). Neither of these are great options -- `concat` should have an option (the default?) to take care of this for the user.
+
+This would also be more consistent with `pd.concat`, which takes a more relaxed approach to matching dataframes with different variables (it does an outer join).
+
+"
+pydata__xarray-4094,pydata/xarray,a64cf2d5476e7bbda099b34c40b7be1880dbd39a,"to_unstacked_dataset broken for single-dim variables
+<!-- A short summary of the issue, if appropriate -->
+
+
+#### MCVE Code Sample
+
+```python
+arr = xr.DataArray(
+     np.arange(3),
+     coords=[(""x"", [0, 1, 2])],
+ )
+data = xr.Dataset({""a"": arr, ""b"": arr})
+stacked = data.to_stacked_array('y', sample_dims=['x'])
+unstacked = stacked.to_unstacked_dataset('y')
+# MergeError: conflicting values for variable 'y' on objects to be combined. You can skip this check by specifying compat='override'.
+```
+
+#### Expected Output
+A working roundtrip.
+
+#### Problem Description
+I need to stack a bunch of variables and later unstack them again, however this doesn't work if the variables only have a single dimension.
+
+#### Versions
+
+<details><summary>Output of <tt>xr.show_versions()</tt></summary>
+
+INSTALLED VERSIONS
+------------------
+commit: None
+python: 3.7.3 (default, Mar 27 2019, 22:11:17) 
+[GCC 7.3.0]
+python-bits: 64
+OS: Linux
+OS-release: 4.15.0-96-generic
+machine: x86_64
+processor: x86_64
+byteorder: little
+LC_ALL: None
+LANG: en_GB.UTF-8
+LOCALE: en_GB.UTF-8
+libhdf5: 1.10.4
+libnetcdf: 4.6.2
+
+xarray: 0.15.1
+pandas: 1.0.3
+numpy: 1.17.3
+scipy: 1.3.1
+netCDF4: 1.4.2
+pydap: None
+h5netcdf: None
+h5py: 2.10.0
+Nio: None
+zarr: None
+cftime: 1.0.4.2
+nc_time_axis: None
+PseudoNetCDF: None
+rasterio: None
+cfgrib: None
+iris: None
+bottleneck: None
+dask: 2.10.1
+distributed: 2.10.0
+matplotlib: 3.1.1
+cartopy: None
+seaborn: 0.10.0
+numbagg: None
+setuptools: 41.0.0
+pip: 19.0.3
+conda: 4.8.3
+pytest: 5.3.5
+IPython: 7.9.0
+sphinx: None
+
+
+</details>
+
+"
+pydata__xarray-4248,pydata/xarray,98dc1f4ea18738492e074e9e51ddfed5cd30ab94,"Feature request: show units in dataset overview
+Here's a hypothetical dataset:
+
+```
+<xarray.Dataset>
+Dimensions:  (time: 3, x: 988, y: 822)
+Coordinates:
+  * x         (x) float64 ...
+  * y         (y) float64 ...
+  * time      (time) datetime64[ns] ...
+Data variables:
+    rainfall  (time, y, x) float32 ...
+    max_temp  (time, y, x) float32 ...
+```
+
+It would be really nice if the units of the coordinates and of the data variables were shown in the `Dataset` repr, for example as:
+
+```
+<xarray.Dataset>
+Dimensions:  (time: 3, x: 988, y: 822)
+Coordinates:
+  * x, in metres         (x)            float64 ...
+  * y, in metres         (y)            float64 ...
+  * time                 (time)         datetime64[ns] ...
+Data variables:
+    rainfall, in mm      (time, y, x)   float32 ...
+    max_temp, in deg C   (time, y, x)   float32 ...
+```
+"
