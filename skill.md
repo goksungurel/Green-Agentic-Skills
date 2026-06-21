@@ -1,54 +1,35 @@
-# Python Debugging Skill
+
+
+# Python Coding Skill (General)
 
 ## Strategy
-When fixing a Python bug, follow this exact order:
-1. Read the error message and identify the file + line number
-2. Read that file to understand the context (use `cat` or `grep`)
-3. Make ONE minimal, targeted fix
-4. Verify the fix makes logical sense before submitting
-5. Submit immediately — do not explore unrelated code
+1. Read the issue carefully — decide if it's a **bug** (something crashes or returns wrong result) or a **feature** (something new to add)
+2. Find the package location first: `python -c "import package_name; print(package_name.__file__)"`
+3. Then search within that directory: `grep -rn "function_name" /path/from/step2/`
+4. Make the smallest possible change that addresses the issue
+5. Submit immediately
 
-## Rules
-- Do NOT refactor or clean up unrelated code
-- Do NOT add new features
-- Do NOT change function signatures unless the bug requires it
-- Fix ONLY what the issue description explicitly describes
-- Prefer editing existing code over rewriting from scratch
+## If it's a bug
+- Identify the exception type and the line it comes from
+- Common fixes:
+  - `TypeError` from `None`: add a None guard before the operation
+  - `TypeError` from wrong type (e.g., bool): cast to the right type first
+  - `IndexError`: remove or guard the out-of-bounds access
+  - `ValueError` from non-invertible/unsupported op: wrap in `try/except`
+  - `LinAlgError` / `SVD failed`: filter NaN/None before numeric computation
+  - Logic bug (wrong result): find the exact variable/line responsible, fix only that
 
-## Common Bug Patterns
+## If it's a feature
+- Find a similar existing feature in the same file — copy its pattern
+- Add the new param/method with a backward-compatible default
+- Do NOT change existing behavior for existing callers
 
-### AttributeError
-- Check if the object could be None before accessing its attributes
-- Verify the attribute name spelling matches the class definition
-
-### TypeError
-- Check that argument types match the function signature
-- Watch for None being passed where a concrete value is expected
-
-### ImportError / ModuleNotFoundError
-- Verify the import path matches the actual module structure
-- Check for circular imports
-
-### KeyError
-- Use `.get(key, default)` instead of `dict[key]` when key may be missing
-- Verify the key exists with `key in dict` before accessing
-
-### ValueError
-- Validate inputs before passing them to functions
-- Check for empty sequences before indexing
-
-### IndexError
-- Check list length before accessing by index
-- Use negative indexing carefully
-
-## Workflow Example
-```
-1. grep -n "error_function" src/module.py   # locate the problem
-2. cat src/module.py | head -50             # read context
-3. sed -i 's/old_code/new_code/' src/module.py  # apply fix
-4. echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT
-```
+## Rules for both
+- Fix or add ONLY what the issue describes — nothing else
+- Do NOT refactor, clean up, or add tests
+- One `grep`, one read, one edit, then submit
 
 ## Submission
-When the fix is complete, run exactly:
+```
 echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT
+```
