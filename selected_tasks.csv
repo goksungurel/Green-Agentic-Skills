@@ -1044,8 +1044,8 @@ $ flask routes
  * Tip: There are .env or .flaskenv files present. Do ""pip install python-dotenv"" to use them.
 Endpoint                                                 Methods    Rule
 -------------------------------------------------------  ---------  ------------------------------------------------
-admin_blueprint.home                                      GET        /home
-test_subdomain_blueprint.home                             GET        /home
+admin_
+test_subdomain_
 static                                                    GET        /static/<path:filename>
 ...
 ```
@@ -1060,8 +1060,8 @@ $ flask routes
  * Tip: There are .env or .flaskenv files present. Do ""pip install python-dotenv"" to use them.
 Domain                Endpoint                                             Methods    Rule
 -----------------   ----------------------------------------------------  ----------  ------------------------------------------------
-admin.test.local     admin_blueprint.home                                  GET        /home
-test.test.local      test_subdomain_blueprint.home                         GET        /home
+admin.test.local     admin_
+test.test.local      test_subdomain_
 test.local           static                                                GET        /static/<path:filename>
 ...
 ```
