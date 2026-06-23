@@ -1,12 +1,12 @@
 """
 experiment.py
 -------------
-Runs SWE-bench tasks under three conditions:
+Runs SWE-bench tasks under two conditions per task:
 
-1. baseline           — no skill injected
-2. general_skill      — skill.md (general guidance) prepended
-3. debug_skill        — skills/debugging_skill.md prepended
-4. feature_skill      — skills/feature_skill.md prepended
+1. baseline              — no skill injected
+2. exception_debug_skill — skills/exception_debug_skill.md prepended (exception bugs)
+3. logic_debug_skill     — skills/logic_debug_skill.md prepended     (silent/logic bugs)
+4. feature_skill         — skills/feature_skill.md prepended         (feature tasks)
 
 For each run the target repo is cloned at the task's base commit into a
 temp directory, the agent runs inside that directory, and the temp
@@ -28,27 +28,30 @@ from codecarbon import EmissionsTracker
 # ------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------
-N_RUNS      = 3
+N_RUNS      = 5
 MAX_STEPS   = 10
 TIMEOUT     = 800
 RESULTS_CSV = "results/runs.csv"
 TRAJ_DIR    = "results/trajectories"
+PATCH_DIR   = "results/patches"
 TASKS_CSV   = "selected_tasks.csv"
 
 # Absolute paths so they work regardless of cwd inside subprocess
 _HERE      = os.path.dirname(os.path.abspath(__file__))
 MINI_YAML  = os.path.join(_HERE, "mini.yaml")
+LOCAL_REPOS = os.path.join(_HERE, "repos")
 
 SKILL_FILES = {
-    "baseline":      None,
-    "debug_skill":   os.path.join(_HERE, "skills", "debugging_skill.md"),
-    "feature_skill": os.path.join(_HERE, "skills", "feature_skill.md"),
+    "baseline":             None,
+    "exception_debug_skill": os.path.join(_HERE, "skills", "exception_debug_skill.md"),
+    "logic_debug_skill":    os.path.join(_HERE, "skills", "logic_debug_skill.md"),
+    "feature_skill":        os.path.join(_HERE, "skills", "feature_skill.md"),
 }
 
 CSV_HEADERS = [
     "timestamp", "task_id", "condition", "run",
     "emissions_kg", "energy_kwh", "duration_s",
-    "returncode", "exit_status", "steps", "success"
+    "returncode", "exit_status", "steps", "code_changed", "success"
 ]
 
 # ------------------------------------------------------------------
@@ -79,14 +82,26 @@ def get_task_meta(task_id: str) -> dict:
 # Repo cloning
 # ------------------------------------------------------------------
 def clone_repo(repo: str, commit: str) -> str:
-    """Clone repo at specific commit into a fresh temp dir. Returns the path."""
+    """Clone repo at specific commit into a fresh temp dir. Returns the path.
+    Uses a local mirror in repos/ if available (works offline); falls back to GitHub.
+    """
     tmpdir = tempfile.mkdtemp(prefix="greenskill_")
-    print(f"      clone github.com/{repo} @ {commit[:8]}...", end=" ", flush=True)
-    subprocess.run(
-        ["git", "clone", "--filter=blob:none", "--quiet",
-         f"https://github.com/{repo}", tmpdir],
-        check=True, capture_output=True, timeout=300,
-    )
+    local_mirror = os.path.join(LOCAL_REPOS, repo.replace("/", "__"))
+
+    if os.path.isdir(local_mirror):
+        print(f"      local clone {repo} @ {commit[:8]}...", end=" ", flush=True)
+        subprocess.run(
+            ["git", "clone", "--local", "--quiet", local_mirror, tmpdir],
+            check=True, capture_output=True, timeout=60,
+        )
+    else:
+        print(f"      clone github.com/{repo} @ {commit[:8]}...", end=" ", flush=True)
+        subprocess.run(
+            ["git", "clone", "--filter=blob:none", "--quiet",
+             f"https://github.com/{repo}", tmpdir],
+            check=True, capture_output=True, timeout=300,
+        )
+
     subprocess.run(
         ["git", "-C", tmpdir, "checkout", "--quiet", commit],
         check=True, capture_output=True, timeout=60,
@@ -120,6 +135,7 @@ def parse_trajectory(traj_file: str) -> dict:
 # ------------------------------------------------------------------
 def ensure_results_dir():
     os.makedirs(TRAJ_DIR, exist_ok=True)
+    os.makedirs(PATCH_DIR, exist_ok=True)
     if not os.path.exists(RESULTS_CSV):
         with open(RESULTS_CSV, "w", newline="") as f:
             csv.DictWriter(f, fieldnames=CSV_HEADERS).writeheader()
@@ -200,6 +216,21 @@ def run_once(task_id: str, problem_statement: str,
         print(f"    [TIMEOUT] run {run_index} exceeded {TIMEOUT}s")
 
     finally:
+        # Check for real file changes and save patch before sandbox is deleted
+        actually_changed = False
+        if repo_dir and os.path.isdir(repo_dir):
+            diff = subprocess.run(
+                ["git", "-C", repo_dir, "diff", "HEAD"],
+                capture_output=True, text=True,
+            )
+            if diff.stdout.strip():
+                actually_changed = True
+                patch_path = os.path.join(
+                    _HERE, PATCH_DIR,
+                    f"{task_id}__{condition}__run{run_index}.patch"
+                )
+                with open(patch_path, "w") as pf:
+                    pf.write(diff.stdout)
         if repo_dir:
             shutil.rmtree(repo_dir, ignore_errors=True)
 
@@ -219,17 +250,18 @@ def run_once(task_id: str, problem_statement: str,
     submitted = traj["exit_status"] == "Submitted"
 
     return {
-        "timestamp":    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "task_id":      task_id,
-        "condition":    condition,
-        "run":          run_index,
-        "emissions_kg": round(emissions_kg, 10),
-        "energy_kwh":   round(energy_kwh,   10),
-        "duration_s":   round(duration_s,    2),
-        "returncode":   returncode,
-        "exit_status":  traj["exit_status"],
-        "steps":        traj["steps"],
-        "success":      (not timed_out) and submitted,
+        "timestamp":      datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "task_id":        task_id,
+        "condition":      condition,
+        "run":            run_index,
+        "emissions_kg":   round(emissions_kg, 10),
+        "energy_kwh":     round(energy_kwh,   10),
+        "duration_s":     round(duration_s,    2),
+        "returncode":     returncode,
+        "exit_status":    traj["exit_status"],
+        "steps":          traj["steps"],
+        "code_changed":   actually_changed,
+        "success":        (not timed_out) and submitted and actually_changed,
     }
 
 
@@ -268,11 +300,12 @@ def run_condition(task_id: str, problem_statement: str,
 if __name__ == "__main__":
     ensure_results_dir()
 
-    task_id = "astropy__astropy-12907"
+    task_id = "astropy__astropy-6938"
     problem = (
-        "Modeling's separability_matrix does not compute separability correctly "
-        "for nested CompoundModels. The function returns wrong results when models "
-        "are composed together using the & operator."
+        "Possible bug in io.fits related to D exponents. "
+        "In fitsrec.py: output_field.replace(encode_ascii('E'), encode_ascii('D')) "
+        "does nothing because chararray.replace() is not in-place — it returns a copy "
+        "that is discarded. The result should be assigned back."
     )
 
     print("=" * 60)
@@ -280,17 +313,19 @@ if __name__ == "__main__":
     print(f"Runs  : {N_RUNS} per condition")
     print("=" * 60)
 
+    skill_cond = "exception_debug_skill"  # change to logic_debug_skill or feature_skill as needed
+
     results = {}
-    for cond in ["baseline", "debug_skill"]:
+    for cond in ["baseline", skill_cond]:
         results[cond] = run_condition(task_id, problem, condition=cond)
 
     print("\n" + "=" * 60)
     print("COMPARISON")
     print("=" * 60)
     b = results["baseline"]["avg_energy"]
-    e = results["debug_skill"]["avg_energy"]
+    e = results[skill_cond]["avg_energy"]
     if b > 0 and e > 0:
         delta = (e - b) / b * 100
-        print(f"  debug_skill: {e:.8f} kWh  "
+        print(f"  {skill_cond}: {e:.8f} kWh  "
               f"({abs(delta):.1f}% {'LESS' if delta < 0 else 'MORE'} than baseline)")
     print("=" * 60)

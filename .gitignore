@@ -18,3 +18,13 @@ powermetrics_log.txt
 # Editor
 .vscode/
 .idea/
+
+# Local repo mirrors (large, not committed)
+repos/
+
+# Backup and temp files
+*.bak
+results/runs_archived_*.csv
+results/batch.pid
+src/
+results/patches/

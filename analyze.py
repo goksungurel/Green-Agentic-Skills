@@ -11,40 +11,74 @@ Usage:
 """
 
 import csv
+import json
 import os
+import re
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-CSV      = "results/runs.csv"
-FIG_DIR  = "results/figures"
+CSV       = "results/runs.csv"
+TRAJ_DIR  = "results/trajectories"
+FIG_DIR   = "results/figures"
+
+# Bash patterns that indicate a real file edit
+_EDIT_PATTERNS = [
+    r"sed -i", r"echo .+>>? ", r"cat > ", r"cat >>",
+    r"tee ", r"printf .+>", r"> .+\.py", r">> .+\.py",
+]
 
 # Conditions shown in the report (in display order)
-COND_ORDER  = ["baseline", "debug_skill", "feature_skill"]
+COND_ORDER  = ["baseline", "exception_debug_skill", "logic_debug_skill", "feature_skill"]
 COND_LABELS = {
-    "baseline":      "Baseline",
-    "debug_skill":   "Debug Skill",
-    "feature_skill": "Feature Skill",
+    "baseline":              "Baseline",
+    "exception_debug_skill": "Exception Debug Skill",
+    "logic_debug_skill":     "Logic Debug Skill",
+    "feature_skill":         "Feature Skill",
 }
 COLORS = {
-    "baseline":      "#6c757d",
-    "debug_skill":   "#198754",
-    "feature_skill": "#fd7e14",
+    "baseline":              "#6c757d",
+    "exception_debug_skill": "#0d6efd",
+    "logic_debug_skill":     "#198754",
+    "feature_skill":         "#fd7e14",
 }
 
-# 10 batch tasks and their types
+# All 30 batch tasks and their types
 TASK_TYPE = {
-    "astropy__astropy-14995":       "debug",
-    "mwaskom__seaborn-3190":        "debug",
-    "mwaskom__seaborn-3010":        "debug",
-    "matplotlib__matplotlib-22711": "debug",
-    "matplotlib__matplotlib-22835": "debug",
-    "django__django-11001":         "debug",
-    "astropy__astropy-6938":        "debug",
-    "pallets__flask-4992":          "feature",
-    "astropy__astropy-14365":       "feature",
-    "django__django-10924":         "feature",
+    # --- exception_debug: bugs with a clear exception / traceback ---
+    "astropy__astropy-14995":           "exception_debug",
+    "mwaskom__seaborn-3190":            "exception_debug",
+    "mwaskom__seaborn-3010":            "exception_debug",
+    "matplotlib__matplotlib-22711":     "exception_debug",
+    "matplotlib__matplotlib-22835":     "exception_debug",
+    "psf__requests-2148":               "exception_debug",
+    "psf__requests-2674":               "exception_debug",
+    # --- logic_debug: wrong result / silent bugs, no exception ---
+    "django__django-11001":             "logic_debug",
+    "astropy__astropy-6938":            "logic_debug",
+    "django__django-11019":             "logic_debug",
+    "django__django-11039":             "logic_debug",
+    "astropy__astropy-12907":           "logic_debug",
+    "matplotlib__matplotlib-23299":     "logic_debug",
+    "matplotlib__matplotlib-23314":     "logic_debug",
+    "psf__requests-1963":               "logic_debug",
+    "psf__requests-2317":               "logic_debug",
+    "psf__requests-3362":               "logic_debug",
+    "mwaskom__seaborn-2848":            "logic_debug",
+    "mwaskom__seaborn-3407":            "logic_debug",
+    "pydata__xarray-4094":              "logic_debug",
+    # --- feature ---
+    "pallets__flask-4992":              "feature",
+    "astropy__astropy-14365":           "feature",
+    "django__django-10924":             "feature",
+    "django__django-10914":             "feature",
+    "astropy__astropy-14182":           "feature",
+    "matplotlib__matplotlib-18869":     "feature",
+    "pallets__flask-4045":              "feature",
+    "pallets__flask-5063":              "feature",
+    "pydata__xarray-3364":              "feature",
+    "pydata__xarray-4248":              "feature",
 }
 
 
@@ -60,12 +94,15 @@ def load_runs(csv_path: str) -> list[dict]:
         r["duration_s"]   = float(r["duration_s"]    or 0)
         r["steps"]        = int(r["steps"]           or 0)
         r["submitted"]    = r["exit_status"] == "Submitted"
+        r["code_changed"] = r.get("code_changed", "") == "True"
     return rows
 
 
 def valid(rows: list[dict]) -> list[dict]:
-    """Keep only rows where the agent actually submitted and measured energy."""
-    return [r for r in rows if r["submitted"] and r["energy_kwh"] > 0]
+    """Keep only rows where the agent made a real code change, submitted, and energy was measured.
+    code_changed is False for old runs (pre-git-diff check) — those are excluded.
+    """
+    return [r for r in rows if r["submitted"] and r["code_changed"] and r["energy_kwh"] > 0]
 
 
 # ------------------------------------------------------------------
@@ -151,23 +188,29 @@ def print_summary(stats: dict, baseline_key: str = "baseline"):
 
 def print_per_task(rows: list[dict]):
     b_stats  = stats_by_task(rows, "baseline")
-    ds_stats = stats_by_task(rows, "debug_skill")
+    ex_stats = stats_by_task(rows, "exception_debug_skill")
+    lo_stats = stats_by_task(rows, "logic_debug_skill")
     fs_stats = stats_by_task(rows, "feature_skill")
+
+    def skill_stats(task_id, ttype):
+        if ttype == "exception_debug": return ex_stats[task_id]
+        if ttype == "logic_debug":     return lo_stats[task_id]
+        return fs_stats[task_id]
 
     print("\n" + "=" * 80)
     print("PER-TASK: baseline vs task_specific_skill  (valid runs only)")
     print("=" * 80)
-    print(f"{'Task':<38} {'type':<8} {'B steps':>8} {'S steps':>8} {'B energy':>12} {'S energy':>12}")
+    print(f"{'Task':<38} {'type':<14} {'B steps':>8} {'S steps':>8} {'B energy':>12} {'S energy':>12}")
     print("-" * 80)
     for task_id, ttype in TASK_TYPE.items():
         short  = task_id.split("__")[1][:35]
         b      = b_stats[task_id]
-        s      = ds_stats[task_id] if ttype == "debug" else fs_stats[task_id]
+        s      = skill_stats(task_id, ttype)
         b_e    = f"{b['energy']:.6f}" if b["n"] else "    n/a "
         s_e    = f"{s['energy']:.6f}" if s["n"] else "    n/a "
         b_s    = f"{b['steps']:.1f}"  if b["n"] else " n/a"
         s_s    = f"{s['steps']:.1f}"  if s["n"] else " n/a"
-        print(f"{short:<38} {ttype:<8} {b_s:>8} {s_s:>8} {b_e:>12} {s_e:>12}")
+        print(f"{short:<38} {ttype:<14} {b_s:>8} {s_s:>8} {b_e:>12} {s_e:>12}")
     print("=" * 80)
 
 
@@ -252,11 +295,15 @@ def plot_success_rate(stats: dict, out_dir: str):
 
 def plot_per_task_steps(rows: list[dict], out_dir: str):
     b_stats  = stats_by_task(rows, "baseline")
-    ds_stats = stats_by_task(rows, "debug_skill")
+    ex_stats = stats_by_task(rows, "exception_debug_skill")
+    lo_stats = stats_by_task(rows, "logic_debug_skill")
     fs_stats = stats_by_task(rows, "feature_skill")
 
     def specific(task_id):
-        return ds_stats[task_id] if TASK_TYPE[task_id] == "debug" else fs_stats[task_id]
+        ttype = TASK_TYPE[task_id]
+        if ttype == "exception_debug": return ex_stats[task_id]
+        if ttype == "logic_debug":     return lo_stats[task_id]
+        return fs_stats[task_id]
 
     tasks_with_data = [t for t in TASK_TYPE
                        if b_stats[t]["n"] > 0 and specific(t)["n"] > 0]
@@ -269,8 +316,12 @@ def plot_per_task_steps(rows: list[dict], out_dir: str):
 
     b_vals = [b_stats[t]["steps"]    for t in tasks_with_data]
     s_vals = [specific(t)["steps"]   for t in tasks_with_data]
-    s_colors = [COLORS["debug_skill"] if TASK_TYPE[t] == "debug"
-                else COLORS["feature_skill"] for t in tasks_with_data]
+    s_colors = [
+        COLORS["exception_debug_skill"] if TASK_TYPE[t] == "exception_debug"
+        else COLORS["logic_debug_skill"] if TASK_TYPE[t] == "logic_debug"
+        else COLORS["feature_skill"]
+        for t in tasks_with_data
+    ]
 
     fig, ax = plt.subplots(figsize=(12, 5))
     ax.bar(x - width/2, b_vals, width, label="Baseline",            color=COLORS["baseline"])
@@ -290,6 +341,117 @@ def plot_per_task_steps(rows: list[dict], out_dir: str):
 
 
 # ------------------------------------------------------------------
+# Real code-change analysis (trajectory-level)
+# ------------------------------------------------------------------
+def load_code_changes(traj_dir: str) -> list[dict]:
+    """
+    Scans every trajectory JSON for bash commands that write to a file.
+    Returns one dict per run: task_id, condition, run, changed (bool), submitted (bool).
+    Only considers current-experiment runs (run1/2/3, known conditions).
+    """
+    results = []
+    for fname in sorted(os.listdir(traj_dir)):
+        if not fname.endswith(".json"):
+            continue
+        parts = fname.replace(".json", "").rsplit("__", 2)
+        if len(parts) != 3:
+            continue
+        task_id, condition, run_str = parts
+        run = run_str.replace("run", "")
+        if run not in ("1", "2", "3"):
+            continue
+        if condition not in ("baseline", "debug_skill", "feature_skill"):
+            continue
+
+        with open(os.path.join(traj_dir, fname)) as f:
+            data = json.load(f)
+
+        info = data.get("info", {})
+        submitted = info.get("exit_status", "") == "Submitted"
+
+        changed = False
+        for msg in data.get("messages", []):
+            for tc in msg.get("tool_calls", []):
+                args_str = tc.get("function", {}).get("arguments", "")
+                try:
+                    cmd = json.loads(args_str).get("command", "")
+                except Exception:
+                    cmd = args_str
+                if any(re.search(p, cmd) for p in _EDIT_PATTERNS):
+                    changed = True
+                    break
+
+        results.append({
+            "task_id":   task_id,
+            "condition": condition,
+            "run":       run,
+            "changed":   changed,
+            "submitted": submitted,
+        })
+    return results
+
+
+def print_code_change_summary(change_rows: list[dict]):
+    print("\n" + "=" * 72)
+    print("REAL CODE CHANGES  (bash file-edit commands found in trajectory)")
+    print("=" * 72)
+    print(f"{'Condition':<16} {'Runs':>5} {'Changed':>8} {'Change%':>8} "
+          f"{'Submitted':>10} {'Changed+Sub':>12}")
+    print("-" * 72)
+
+    for cond in COND_ORDER:
+        rows = [r for r in change_rows if r["condition"] == cond]
+        if not rows:
+            continue
+        changed     = [r for r in rows if r["changed"]]
+        submitted   = [r for r in rows if r["submitted"]]
+        chg_sub     = [r for r in rows if r["changed"] and r["submitted"]]
+        pct = len(changed) / len(rows) * 100
+        print(f"{COND_LABELS[cond]:<16} {len(rows):>5} {len(changed):>8} "
+              f"{pct:>7.0f}% {len(submitted):>10} {len(chg_sub):>12}")
+
+    all_sub  = [r for r in change_rows if r["submitted"]]
+    real_sub = [r for r in change_rows if r["submitted"] and r["changed"]]
+    print("-" * 72)
+    print(f"{'TOTAL':<16} {len(change_rows):>5} "
+          f"{sum(r['changed'] for r in change_rows):>8}")
+    print(f"\nOf {len(all_sub)} Submitted runs: "
+          f"{len(real_sub)} ({len(real_sub)/len(all_sub)*100:.0f}%) "
+          f"had real code changes — "
+          f"{len(all_sub)-len(real_sub)} submitted without editing anything.")
+    print("=" * 72)
+
+
+def plot_code_change_rate(change_rows: list[dict], out_dir: str):
+    conds  = [c for c in COND_ORDER if any(r["condition"] == c for r in change_rows)]
+    labels = [COND_LABELS[c] for c in conds]
+    colors = [COLORS[c] for c in conds]
+
+    change_rates = []
+    for cond in conds:
+        rows = [r for r in change_rows if r["condition"] == cond]
+        change_rates.append(len([r for r in rows if r["changed"]]) / len(rows) * 100 if rows else 0)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bars = ax.bar(labels, change_rates, color=colors, width=0.5, edgecolor="white")
+    for bar, val in zip(bars, change_rates):
+        ax.text(bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 1,
+                f"{val:.0f}%", ha="center", va="bottom", fontsize=9)
+
+    ax.set_ylabel("Runs with Real File Edit (%)")
+    ax.set_title("Rate of Real Code Changes per Condition\n"
+                 "(bash file-write commands found in trajectory)")
+    ax.set_ylim(0, 50)
+    ax.spines[["top", "right"]].set_visible(False)
+    plt.tight_layout()
+    path = os.path.join(out_dir, "code_change_rate.png")
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"  Saved: {path}")
+
+
+# ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
 if __name__ == "__main__":
@@ -301,10 +463,14 @@ if __name__ == "__main__":
     print_summary(stats)
     print_per_task(rows)
 
+    change_rows = load_code_changes(TRAJ_DIR)
+    print_code_change_summary(change_rows)
+
     print("\nGenerating figures...")
     plot_energy(stats, FIG_DIR)
     plot_steps(stats, FIG_DIR)
     plot_success_rate(stats, FIG_DIR)
     plot_per_task_steps(rows, FIG_DIR)
+    plot_code_change_rate(change_rows, FIG_DIR)
 
     print(f"\nDone. Figures saved to {FIG_DIR}/")

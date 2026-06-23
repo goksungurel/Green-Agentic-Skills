@@ -1,11 +1,11 @@
-# Python Debugging Skill
+# Exception Debugging Skill
 
 ## Strategy
-1. Read the error message — identify the exception type and the module name (e.g. `seaborn._core.scales`)
+1. Read the traceback — identify the exception type and the exact failing line
 2. Find the package path: `python -c "import package_name; print(package_name.__file__)"`
-3. Search in that directory: `grep -rn "function_name" /found/path/`
-4. Read only the relevant code section, make ONE minimal fix
-5. Submit immediately — do not explore unrelated code
+3. Go directly to the failing line — do not explore unrelated code
+4. Make ONE minimal fix
+5. Submit immediately
 
 ## Exception Patterns and Fixes
 
@@ -29,14 +29,10 @@
 - Input data contains `NaN` or `None` — filter before numeric operations
 - Fix: `data = data.dropna()` or `mask = np.isfinite(x) & np.isfinite(y); x, y = x[mask], y[mask]`
 
-### Logic bug — wrong result, no exception
-- Read the description's expected vs actual output carefully
-- Grep for the specific function name to find the exact line
-- Common causes: wrong variable used, missing `.copy()`, in-place op not assigned, regex matching only last line
-
-### Regression bug — worked in version X, broken in version Y
-- The fix is almost always a one-line guard for the new edge case
-- Find where the behavior diverged: look for `if ... is None` or missing fallback
+### Exception not wrapped (passes through as wrong type)
+- A low-level exception (socket.error, urllib3 error) escapes unwrapped
+- Fix: catch it alongside existing exceptions and re-raise as the correct type
+- Example: `except (socket.error, existing_error) as e: raise RequestException(e)`
 
 ## Submission
 When the fix is complete, run exactly:
