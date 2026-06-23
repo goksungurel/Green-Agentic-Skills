@@ -1,16 +1,16 @@
 # GreenSkill — Does Structured Guidance Reduce AI Energy Consumption?
 
 **Research Question:**
-Does adding a structured `skill.md` file to an AI coding agent's prompt reduce the energy it consumes when solving software engineering tasks?
+Does injecting a task-specific skill file into an AI coding agent's prompt reduce the energy it consumes when solving software engineering tasks?
 
 **Hypothesis:**
-Structured guidance reduces unproductive agent turns → fewer LLM calls → less energy.
+Structured guidance reduces unproductive agent turns → fewer LLM calls → less energy consumed per solved task.
 
 ---
 
 ## Overview
 
-GreenSkill is an empirical study that runs a local AI coding agent on [SWE-bench Lite](https://www.swebench.com/lite.html) tasks under three conditions and measures the energy consumed by each. By comparing energy across conditions, we test whether skill injection is a viable Green AI strategy.
+GreenSkill is an empirical study that runs a fully local AI coding agent on [SWE-bench Lite](https://www.swebench.com/lite.html) tasks under two conditions and measures energy consumption. Each task receives either no skill (baseline) or a task-specific skill file matched to the bug type. By comparing energy, step count, and success rate across conditions, we test whether skill injection is a viable Green AI strategy.
 
 ---
 
@@ -19,36 +19,57 @@ GreenSkill is an empirical study that runs a local AI coding agent on [SWE-bench
 | Component | Tool |
 |---|---|
 | Agent | [mini-SWE-agent](https://github.com/SWE-agent/mini-swe-agent) v2.4.1 |
-| Model | Qwen2.5-Coder-7B via Ollama (local) |
+| Model | Qwen2.5-Coder-7B via Ollama (fully local, no internet during runs) |
 | Benchmark | SWE-bench Lite — 30 tasks across 7 repositories |
 | Energy measurement | [CodeCarbon](https://github.com/mlco2/codecarbon) |
-| Hardware | Apple Silicon (M-series), fully local execution |
+| Hardware | Apple Silicon (M-series) |
 
 ---
 
 ## Experiment Design
 
-Each task is run under **two conditions**, each repeated 3 times to account for LLM non-determinism:
+**30 tasks × 2 conditions × 5 runs = 300 total runs**
+
+Each task has exactly 2 conditions: `baseline` and one task-specific skill condition.
 
 | Condition | What the agent receives |
 |---|---|
 | `baseline` | Problem statement only |
 | `task_specific_skill` | Task-specific skill file + problem statement |
 
-Task type determines which skill file is used:
-- **Debug tasks** — bugs that raise exceptions or return wrong results → `skills/debugging_skill.md`
-- **Feature tasks** — requests to add new functionality → `skills/feature_skill.md`
+Task type determines which skill file is injected:
+- **Exception debug tasks (7)** — bugs with a clear exception/traceback → `skills/exception_debug_skill.md`
+- **Logic debug tasks (13)** — silent/wrong-result bugs, no exception → `skills/logic_debug_skill.md`
+- **Feature tasks (10)** — requests to add new functionality → `skills/feature_skill.md`
 
-### Metrics (per run)
+### Model Configuration
+
+| Parameter | Value |
+|---|---|
+| Model | `ollama/qwen2.5-coder:7b` |
+| Temperature | `0.2` (low but non-zero — controlled reproducibility) |
+| Time limit | 120s per step |
+| Max steps | 10 |
+
+### Success Metric
+
+A run is counted as **successful** only when all three conditions are met:
+1. `exit_status == Submitted` — agent completed the task
+2. `code_changed == True` — agent actually modified a file (verified via `git diff HEAD`)
+3. No timeout occurred
+
+Runs where the agent submitted without making any file changes are **not** counted as successful.
+
+### Metrics Recorded Per Run
 
 | Metric | Description |
 |---|---|
 | `energy_kwh` | Energy consumed (kWh), measured by CodeCarbon |
-| `emissions_kg` | CO₂ equivalent estimated by CodeCarbon |
 | `steps` | Number of LLM calls the agent made |
-| `exit_status` | `Submitted` (agent completed) or `RepeatedFormatError` (agent failed) |
-| `success` | `True` only when `exit_status == Submitted` |
-| `duration_s` | Wall-clock time |
+| `exit_status` | `Submitted` or `RepeatedFormatError` |
+| `code_changed` | `True` if agent modified at least one file |
+| `success` | `True` only when submitted + code changed + no timeout |
+| `duration_s` | Wall-clock time in seconds |
 
 ---
 
@@ -56,20 +77,22 @@ Task type determines which skill file is used:
 
 ```
 greenskill/
-├── experiment.py          # Core pipeline: clone repo, run agent, measure energy
-├── run_batch.py           # Batch runner: 3 conditions × 3 runs per task, resumes if interrupted
-├── analyze.py             # Reads runs.csv, prints summary tables, saves figures
+├── experiment.py          # Core pipeline: clone repo → run agent → measure energy → save patch
+├── run_batch.py           # Batch runner: 30 tasks × 2 conditions × 5 runs = 300 runs, resumes if interrupted
+├── analyze.py             # Reads runs.csv + trajectories, prints tables, saves figures
 ├── select_tasks.py        # One-time: selects 30 tasks from SWE-bench Lite
-├── mini.yaml              # Agent configuration (yolo mode, step limit, model)
-├── skill.md               # General Python coding skill
+├── mini.yaml              # Agent config (yolo mode, temperature, time limit)
 ├── skills/
-│   ├── debugging_skill.md # Exception-specific debugging patterns
-│   └── feature_skill.md   # API extension and feature addition patterns
+│   ├── exception_debug_skill.md  # Patterns for bugs with clear exceptions/tracebacks
+│   ├── logic_debug_skill.md      # Patterns for silent/wrong-result bugs
+│   └── feature_skill.md          # Feature addition patterns (add parameter, extend API)
 ├── selected_tasks.csv     # 30 selected tasks (instance_id, repo, commit, problem)
+├── repos/                 # Local git mirrors for offline operation (not committed)
 └── results/
     ├── runs.csv           # All experiment results (one row per run)
-    ├── figures/           # Bar charts generated by analyze.py
-    └── trajectories/      # Full agent JSON trajectories (one file per run)
+    ├── trajectories/      # Full agent JSON trajectories (one file per run)
+    ├── patches/           # Git diffs saved as .patch files for correctness evaluation
+    └── figures/           # Bar charts generated by analyze.py
 ```
 
 ---
@@ -77,22 +100,20 @@ greenskill/
 ## How to Run
 
 ```bash
-# 1. Activate environment
+# Activate environment
 source venv/bin/activate
-export MSWEA_COST_TRACKING='ignore_errors'
 
-# 2. Run the full batch experiment (resumes automatically if interrupted)
-python3 run_batch.py
+# Start full batch from scratch (archives old results)
+./start_batch.sh
 
-# 3. Analyse results and generate figures
+# Resume after interruption (continues from where it left off)
+./resume_batch.sh
+
+# Monitor progress
+tail -f results/batch_run.log
+
+# Analyze results and generate figures
 python3 analyze.py
-```
-
-`run_batch.py` checks `results/runs.csv` on every start and skips already-completed runs, so it is safe to stop and restart at any point.
-
-For a single task:
-```bash
-python3 experiment.py   # edit task_id and problem inside __main__ first
 ```
 
 ---
@@ -102,10 +123,10 @@ python3 experiment.py   # edit task_id and problem inside __main__ first
 ```
 timestamp, task_id, condition, run,
 emissions_kg, energy_kwh, duration_s,
-returncode, exit_status, steps, success
+returncode, exit_status, steps, code_changed, success
 ```
 
-Rows with `energy_kwh == 0` represent timed-out or measurement-failed runs and are excluded from averages in `analyze.py`.
+Rows with `energy_kwh == 0` represent timed-out or measurement-failed runs and are excluded from energy averages in `analyze.py`.
 
 ---
 
