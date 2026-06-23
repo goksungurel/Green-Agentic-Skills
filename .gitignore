@@ -15,6 +15,9 @@ env/
 powermetrics_log.txt
 *.log
 
+# Claude Code project instructions (local only)
+CLAUDE.md
+
 # Editor
 .vscode/
 .idea/
