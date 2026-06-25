@@ -306,20 +306,29 @@ def plot_steps(stats: dict, out_dir: str):
 def plot_success_rate(stats: dict, out_dir: str):
     conds  = [c for c in COND_ORDER if c in stats]
     labels = [COND_LABELS[c] for c in conds]
-    values = [stats[c]["success_rate"] * 100 for c in conds]
     colors = [COLORS[c] for c in conds]
 
+    has_resolved = any(
+        s.get("resolved_rate") is not None for s in stats.values()
+    )
+
     fig, ax = plt.subplots(figsize=(8, 5))
-    bars = ax.bar(labels, values, color=colors, width=0.5, edgecolor="white")
 
-    for bar, val in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 1,
-                f"{val:.0f}%", ha="center", va="bottom", fontsize=9)
+    if has_resolved:
+        values = [(stats[c]["resolved_rate"] or 0) * 100 for c in conds]
+        bars = ax.bar(labels, values, color=colors, width=0.5, edgecolor="white")
+        for bar, val in zip(bars, values):
+            ax.text(bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 1,
+                    f"{val:.0f}%", ha="center", va="bottom", fontsize=9)
+        ax.set_ylabel("Resolved Rate (%)")
+        ax.set_title("Harness-Resolved Rate per Condition\n(FAIL_TO_PASS tests passed)")
+        ax.set_ylim(0, 110)
+    else:
+        ax.set_title("Harness-Resolved Rate per Condition")
+        ax.set_ylabel("Resolved Rate (%)")
+        ax.set_ylim(0, 110)
 
-    ax.set_ylabel("Success Rate (%)")
-    ax.set_title("Agent Submission Rate per Condition\n(exit_status == Submitted)")
-    ax.set_ylim(0, 110)
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
     path = os.path.join(out_dir, "success_by_condition.png")
