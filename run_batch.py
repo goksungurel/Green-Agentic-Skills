@@ -315,6 +315,10 @@ if __name__ == "__main__":
         "--fresh", action="store_true",
         help="Archive old runs.csv and start all runs from scratch"
     )
+    parser.add_argument(
+        "--only", nargs="+", metavar="TASK_ID",
+        help="Run only these task IDs (space-separated)"
+    )
     args = parser.parse_args()
 
     experiment.ensure_results_dir()
@@ -326,20 +330,27 @@ if __name__ == "__main__":
 
     done = load_existing_runs()
 
-    n_exc     = sum(1 for t in BATCH if t["type"] == "exception_debug")
+    active_batch = BATCH
+    if args.only:
+        active_batch = [t for t in BATCH if t["id"] in args.only]
+        if not active_batch:
+            print(f"ERROR: no tasks matched {args.only}")
+            raise SystemExit(1)
+
+    n_exc     = sum(1 for t in active_batch if t["type"] == "exception_debug")
     n_logic   = sum(1 for t in BATCH if t["type"] == "logic_debug")
     n_feature = sum(1 for t in BATCH if t["type"] == "feature")
 
     print("=" * 70)
-    print(f"Batch  : {len(BATCH)} tasks ({n_exc} exception_debug, {n_logic} logic_debug, {n_feature} feature)")
+    print(f"Batch  : {len(active_batch)} tasks ({n_exc} exception_debug, {n_logic} logic_debug, {n_feature} feature)")
     print(f"Conds  : {' | '.join(CONDITIONS)}")
-    print(f"Runs   : {N_RUNS} per condition  →  {len(BATCH) * 2 * N_RUNS} total runs")
+    print(f"Runs   : {N_RUNS} per condition  →  {len(active_batch) * 2 * N_RUNS} total runs")
     print(f"Output : {experiment.RESULTS_CSV}")
     print("=" * 70)
 
     all_results = []
 
-    for task in BATCH:
+    for task in active_batch:
         task_id = task["id"]
         problem = task["problem"]
         task_type = task["type"]
@@ -373,13 +384,14 @@ if __name__ == "__main__":
                 experiment.append_result(r)
                 done.add((task_id, condition, str(i)))
                 print(f"energy={r['energy_kwh']:.8f} kWh  "
-                      f"duration={r['duration_s']:.1f}s  success={r['success']}")
+                      f"duration={r['duration_s']:.1f}s  changed={r['code_changed']}")
 
-            valid = [r for r in run_results if r["success"] and r["emissions_kg"] > 0]
-            avg = lambda key: sum(r[key] for r in valid) / len(valid) if valid else 0.0
+            measured = [r for r in run_results if r["energy_kwh"] > 0]
+            avg = lambda key: sum(r[key] for r in measured) / len(measured) if measured else 0.0
             print(f"  --> avg energy   : {avg('energy_kwh'):.8f} kWh")
             print(f"  --> avg duration : {avg('duration_s'):.1f} s")
-            print(f"  --> success rate : {len([r for r in run_results if r['success']])}/{len(pending)}")
+            print(f"  --> code_changed : {sum(r['code_changed'] for r in run_results)}/{len(pending)}")
+            print(f"  --> (accuracy via evaluate_patches.py + harness)")
 
             all_results.append({
                 "task_id":       task_id,
@@ -388,7 +400,7 @@ if __name__ == "__main__":
                 "avg_energy":    avg("energy_kwh"),
                 "avg_emissions": avg("emissions_kg"),
                 "avg_duration":  avg("duration_s"),
-                "n_valid":       len(valid),
+                "n_valid":       len(measured),
             })
 
     # ── Summary table ──────────────────────────────────────────────────
@@ -404,7 +416,7 @@ if __name__ == "__main__":
                 return r["avg_energy"]
         return None
 
-    for task in BATCH:
+    for task in active_batch:
         tid = task["id"]
         short = tid.split("__")[1][:35]
         b = get_avg(tid, "baseline")

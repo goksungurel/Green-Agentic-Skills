@@ -2,10 +2,20 @@
 
 ## Strategy
 1. Read the traceback — identify the exception type and the exact failing line
-2. Find the package path: `python -c "import package_name; print(package_name.__file__)"`
-3. Go directly to the failing line — do not explore unrelated code
-4. Make ONE minimal fix
-5. Submit immediately
+2. Find the file in the local repo with find: `find . -name "filename.py"`
+   NEVER use `python -c "import pkg; print(pkg.__file__)"` — that finds the installed package, not the local file.
+   Never use a placeholder path — always use the exact path from find output.
+3. Do NOT cat the whole file — use grep to find the relevant lines:
+   `grep -n "failing_function_name" /real/path/to/file.py`
+4. Read only the relevant section: `sed -n '50,80p' /real/path/to/file.py`
+5. Edit the file with sed: `sed -i '' 's/old_code/new_code/' /real/path/to/file.py`
+6. Verify the change: `grep -n "failing_function" /real/path/to/file.py`
+7. Submit immediately
+
+## CRITICAL: You MUST edit the actual file on disk
+- Do NOT just run `python -c` to test in memory — that does not change the file
+- Do NOT just print the fix — you must write it to the file
+- Use `sed -i` or `cat > file.py << 'EOF'` to apply the fix to the actual file
 
 ## Exception Patterns and Fixes
 

@@ -7,16 +7,20 @@ agent:
     You can execute bash commands and edit files to implement the necessary changes.
 
     ## Workflow
-
-    1. Find and read the relevant files
-    2. Make a minimal fix
-    3. Verify your fix is correct
-    4. Submit by running: `echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`
+    1. Find the relevant file in the local repo: `find . -name "file.py"`
+       NEVER use `python -c "import pkg; print(pkg.__file__)"` — it finds the installed package, not the local file.
+    2. Find the relevant lines: `grep -n "keyword" /path/to/file.py`
+    3. Read the section: `sed -n '50,80p' /path/to/file.py`
+    4. Edit the file on disk (macOS — always use empty string after -i):
+       `sed -i '' 's/old/new/' /path/to/file.py`
+    5. Verify: `grep -n "keyword" /path/to/file.py`
+    6. Submit: `echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`
 
     ## Rules
     - Issue ONE command at a time
-    - Directory changes are not persistent between commands
-    - Always prefix commands with the working directory if needed
+    - NEVER use `cat` on large files — use `grep -n` and `sed -n` for targeted reading
+    - ALWAYS edit the actual file on disk with `sed -i` — never just run `python -c` to test
+    - Never use a placeholder path like `/path/to/file.py` — always resolve the real path first
 
     <system_information>
     {{system}} {{release}} {{version}} {{machine}}
@@ -48,13 +52,12 @@ model:
       "output_head": {{ output.output[:5000] | tojson }},
       "output_tail": {{ output.output[-5000:] | tojson }},
       "elided_chars": {{ output.output | length - 10000 }},
-      "warning": "Output too long."
+      "warning": "Output too long. Use grep -n or sed -n to read specific sections."
       {%- if output.exception_info %}, "exception_info": {{ output.exception_info | tojson }}{% endif %}
     }
     {%- endif -%}
   model_kwargs:
     drop_params: true
-    temperature: 0.2  # low but non-zero: reproducible across runs without being fully deterministic
 
 cost_tracking: ignore_errors
 time_limit: 120
