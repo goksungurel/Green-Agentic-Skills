@@ -19,9 +19,10 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-CSV       = "results/runs.csv"
-TRAJ_DIR  = "results/trajectories"
-FIG_DIR   = "results/figures"
+CSV          = "results/runs.csv"
+ACCURACY_CSV = "results/accuracy.csv"
+TRAJ_DIR     = "results/trajectories"
+FIG_DIR      = "results/figures"
 
 # Bash patterns that indicate a real file edit
 _EDIT_PATTERNS = [
@@ -95,14 +96,35 @@ def load_runs(csv_path: str) -> list[dict]:
         r["steps"]        = int(r["steps"]           or 0)
         r["submitted"]    = r["exit_status"] == "Submitted"
         r["code_changed"] = r.get("code_changed", "") == "True"
+        r["resolved"]     = False  # filled in by merge_accuracy()
+    return rows
+
+
+def load_accuracy(csv_path: str) -> dict:
+    """Returns dict keyed by (task_id, condition, run) → resolved (bool)."""
+    resolved = {}
+    if not os.path.exists(csv_path):
+        return resolved
+    with open(csv_path, newline="") as f:
+        for row in csv.DictReader(f):
+            key = (row["task_id"], row["condition"], row["run"])
+            resolved[key] = row["resolved"].strip().lower() == "true"
+    return resolved
+
+
+def merge_accuracy(rows: list[dict], accuracy: dict) -> list[dict]:
+    """Attach resolved field from accuracy.csv to each run row."""
+    for r in rows:
+        key = (r["task_id"], r["condition"], r["run"])
+        r["resolved"] = accuracy.get(key, False)
     return rows
 
 
 def valid(rows: list[dict]) -> list[dict]:
-    """Keep only rows where the agent made a real code change, submitted, and energy was measured.
-    code_changed is False for old runs (pre-git-diff check) — those are excluded.
+    """Keep only harness-verified correct runs with energy measured.
+    Requires evaluate_patches.py to have been run first (accuracy.csv).
     """
-    return [r for r in rows if r["submitted"] and r["code_changed"] and r["energy_kwh"] > 0]
+    return [r for r in rows if r["resolved"] and r["energy_kwh"] > 0]
 
 
 # ------------------------------------------------------------------
@@ -128,13 +150,15 @@ def stats_by_condition(rows: list[dict]) -> dict:
     for cond in all_by_cond:
         all_r  = all_by_cond[cond]
         good_r = by_cond[cond]
+        has_resolved = any(r["resolved"] for r in all_r)
         result[cond] = {
-            "energy":       avg([r["energy_kwh"] for r in good_r]),
-            "steps":        avg([r["steps"]       for r in good_r]),
-            "duration":     avg([r["duration_s"]  for r in good_r]),
-            "success_rate": sum(r["submitted"] for r in all_r) / len(all_r),
-            "n_total":      len(all_r),
-            "n_valid":      len(good_r),
+            "energy":        avg([r["energy_kwh"] for r in good_r]),
+            "steps":         avg([r["steps"]       for r in good_r]),
+            "duration":      avg([r["duration_s"]  for r in good_r]),
+            "resolved_rate": sum(r["resolved"]  for r in all_r) / len(all_r) if has_resolved else None,
+            "success_rate":  sum(r["submitted"] for r in all_r) / len(all_r),
+            "n_total":       len(all_r),
+            "n_valid":       len(good_r),
         }
     return result
 
@@ -162,28 +186,39 @@ def print_summary(stats: dict, baseline_key: str = "baseline"):
     b_energy = stats.get(baseline_key, {}).get("energy", 0)
     b_steps  = stats.get(baseline_key, {}).get("steps",  0)
 
-    print("\n" + "=" * 72)
+    has_resolved = any(
+        s.get("resolved_rate") is not None for s in stats.values()
+    )
+
+    print("\n" + "=" * 80)
     print("CONDITION SUMMARY")
-    print("=" * 72)
-    header = f"{'Condition':<18} {'n':>4} {'Energy (kWh)':>14} {'vs base':>9} {'Steps':>7} {'Success':>8}"
+    print("=" * 80)
+    header = (
+        f"{'Condition':<22} {'n':>4} {'Energy (kWh)':>14} {'vs base':>9} "
+        f"{'Steps':>7} {'Resolved' if has_resolved else 'Submit':>9}"
+    )
     print(header)
-    print("-" * 72)
+    print("-" * 80)
 
     for cond in COND_ORDER:
         if cond not in stats:
             continue
         s = stats[cond]
         energy_delta = ((s["energy"] - b_energy) / b_energy * 100) if b_energy > 0 else 0
-        steps_delta  = ((s["steps"]  - b_steps)  / b_steps  * 100) if b_steps  > 0 else 0
         direction    = "LESS" if energy_delta < 0 else "more"
         delta_str    = f"{abs(energy_delta):.1f}% {direction}" if b_energy > 0 and cond != baseline_key else "—"
+        rate = s["resolved_rate"] if has_resolved and s["resolved_rate"] is not None else s["success_rate"]
         print(
-            f"{COND_LABELS[cond]:<18} {s['n_valid']:>4} "
+            f"{COND_LABELS[cond]:<22} {s['n_valid']:>4} "
             f"{s['energy']:>14.8f} {delta_str:>9} "
-            f"{s['steps']:>7.1f} {s['success_rate']:>7.0%}"
+            f"{s['steps']:>7.1f} {rate:>8.0%}"
         )
 
-    print("=" * 72)
+    if has_resolved:
+        print("  * Energy averages include only harness-resolved (correct) runs")
+    else:
+        print("  * accuracy.csv not found — run evaluate_patches.py after batch")
+    print("=" * 80)
 
 
 def print_per_task(rows: list[dict]):
@@ -457,7 +492,15 @@ def plot_code_change_rate(change_rows: list[dict], out_dir: str):
 if __name__ == "__main__":
     os.makedirs(FIG_DIR, exist_ok=True)
 
-    rows  = load_runs(CSV)
+    rows     = load_runs(CSV)
+    accuracy = load_accuracy(ACCURACY_CSV)
+    rows     = merge_accuracy(rows, accuracy)
+
+    if accuracy:
+        print(f"Loaded accuracy.csv: {len(accuracy)} evaluated patches")
+    else:
+        print("No accuracy.csv found — resolved metric not available yet")
+
     stats = stats_by_condition(rows)
 
     print_summary(stats)

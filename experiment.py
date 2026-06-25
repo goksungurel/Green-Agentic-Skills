@@ -51,8 +51,15 @@ SKILL_FILES = {
 CSV_HEADERS = [
     "timestamp", "task_id", "condition", "run",
     "emissions_kg", "energy_kwh", "duration_s",
-    "returncode", "exit_status", "steps", "code_changed", "success"
+    "returncode", "exit_status", "steps", "code_changed"
 ]
+
+def build_prompt(skill_file: str | None, problem_statement: str) -> str:
+    """Prepend skill content to the problem statement (the approach that works)."""
+    if skill_file and os.path.isfile(skill_file):
+        return open(skill_file).read() + "\n\n---\n\n" + problem_statement
+    return problem_statement
+
 
 # ------------------------------------------------------------------
 # Task metadata
@@ -150,16 +157,14 @@ def append_result(row: dict):
 # Core run
 # ------------------------------------------------------------------
 def run_once(task_id: str, problem_statement: str,
-             condition: str, run_index: int) -> dict:
+
+            condition: str, run_index: int) -> dict:
     """
     Clone the task repo, run mini-swe-agent inside it, measure energy.
     The cloned directory is always deleted after the run.
     """
     skill_file = SKILL_FILES.get(condition)
-    if skill_file:
-        prompt = open(skill_file).read() + f"\n\n---\n\nTASK: {problem_statement}"
-    else:
-        prompt = problem_statement
+    prompt = build_prompt(skill_file, problem_statement)
 
     prompt_file = f"/tmp/greenskill_{task_id}_{condition}_run{run_index}.txt"
     with open(prompt_file, "w") as f:
@@ -233,6 +238,7 @@ def run_once(task_id: str, problem_statement: str,
                     pf.write(diff.stdout)
         if repo_dir:
             shutil.rmtree(repo_dir, ignore_errors=True)
+        os.unlink(prompt_file)
 
     emissions_kg = tracker.stop() or 0.0
     duration_s   = (datetime.now() - start_time).total_seconds()
@@ -247,7 +253,6 @@ def run_once(task_id: str, problem_statement: str,
         energy_kwh   = 0.0
 
     traj = parse_trajectory(traj_file)
-    submitted = traj["exit_status"] == "Submitted"
 
     return {
         "timestamp":      datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -261,7 +266,6 @@ def run_once(task_id: str, problem_statement: str,
         "exit_status":    traj["exit_status"],
         "steps":          traj["steps"],
         "code_changed":   actually_changed,
-        "success":        (not timed_out) and submitted and actually_changed,
     }
 
 
@@ -277,15 +281,16 @@ def run_condition(task_id: str, problem_statement: str,
         append_result(r)
         print(f"energy={r['energy_kwh']:.8f} kWh  "
               f"duration={r['duration_s']:.1f}s  "
-              f"success={r['success']}")
+              f"changed={r['code_changed']}")
 
-    valid  = [r for r in results if r["success"] and r["emissions_kg"] > 0]
-    n_valid = len(valid)
-    avg = lambda key: sum(r[key] for r in valid) / n_valid if valid else 0.0
+    measured = [r for r in results if r["energy_kwh"] > 0]
+    n_measured = len(measured)
+    avg = lambda key: sum(r[key] for r in measured) / n_measured if measured else 0.0
 
-    print(f"  --> avg energy   : {avg('energy_kwh'):.8f} kWh")
-    print(f"  --> avg duration : {avg('duration_s'):.1f} s")
-    print(f"  --> success rate : {len([r for r in results if r['success']])}/{n_runs}")
+    print(f"  --> avg energy    : {avg('energy_kwh'):.8f} kWh")
+    print(f"  --> avg duration  : {avg('duration_s'):.1f} s")
+    print(f"  --> code_changed  : {sum(r['code_changed'] for r in results)}/{n_runs}")
+    print(f"  --> (accuracy via evaluate_patches.py + harness)")
 
     return {
         "task_id":       task_id,
@@ -293,19 +298,19 @@ def run_condition(task_id: str, problem_statement: str,
         "avg_emissions": avg("emissions_kg"),
         "avg_energy":    avg("energy_kwh"),
         "avg_duration":  avg("duration_s"),
-        "n_valid":       n_valid,
+        "n_valid":       n_measured,
     }
 
 
 if __name__ == "__main__":
     ensure_results_dir()
 
-    task_id = "astropy__astropy-6938"
+    task_id = "psf__requests-2317"
     problem = (
-        "Possible bug in io.fits related to D exponents. "
-        "In fitsrec.py: output_field.replace(encode_ascii('E'), encode_ascii('D')) "
-        "does nothing because chararray.replace() is not in-place — it returns a copy "
-        "that is discarded. The result should be assigned back."
+        "method = builtin_str(method) problem. "
+        "In requests/sessions.py there is: method = builtin_str(method). "
+        "This converts a binary string like b'GET' to the literal string \"b'GET'\" in Python 3, "
+        "causing 404 errors. The fix is to decode the bytes properly instead."
     )
 
     print("=" * 60)
@@ -313,7 +318,7 @@ if __name__ == "__main__":
     print(f"Runs  : {N_RUNS} per condition")
     print("=" * 60)
 
-    skill_cond = "exception_debug_skill"  # change to logic_debug_skill or feature_skill as needed
+    skill_cond = "logic_debug_skill"
 
     results = {}
     for cond in ["baseline", skill_cond]:
