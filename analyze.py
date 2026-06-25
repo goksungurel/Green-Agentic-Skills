@@ -121,10 +121,10 @@ def merge_accuracy(rows: list[dict], accuracy: dict) -> list[dict]:
 
 
 def valid(rows: list[dict]) -> list[dict]:
-    """Keep only harness-verified correct runs with energy measured.
-    Requires evaluate_patches.py to have been run first (accuracy.csv).
+    """Keep all runs where energy was measured, regardless of resolved status.
+    Energy is averaged over all runs to reflect true cost including failures.
     """
-    return [r for r in rows if r["resolved"] and r["energy_kwh"] > 0]
+    return [r for r in rows if r["energy_kwh"] > 0]
 
 
 # ------------------------------------------------------------------
@@ -136,45 +136,53 @@ def avg(vals: list) -> float:
 
 def stats_by_condition(rows: list[dict]) -> dict:
     """
-    Returns dict: condition -> {energy, steps, duration, success_rate, n_total, n_valid}
-    Uses only submitted+measured rows for energy/steps averages.
+    Returns dict: condition -> stats including energy_all and energy_resolved.
+    energy_all: avg over all runs with measured energy (resolved and unresolved).
+    energy_resolved: avg over harness-resolved runs only.
     """
     by_cond = defaultdict(list)
     all_by_cond = defaultdict(list)
     for r in rows:
         all_by_cond[r["condition"]].append(r)
-        if r["submitted"] and r["energy_kwh"] > 0:
+        if r["energy_kwh"] > 0:
             by_cond[r["condition"]].append(r)
 
     result = {}
     for cond in all_by_cond:
-        all_r  = all_by_cond[cond]
-        good_r = by_cond[cond]
-        has_resolved = any(r["resolved"] for r in all_r)
+        all_r         = all_by_cond[cond]
+        measured      = by_cond[cond]
+        resolved_rows = [r for r in measured if r["resolved"]]
+        has_resolved  = any(r["resolved"] for r in all_r)
         result[cond] = {
-            "energy":        avg([r["energy_kwh"] for r in good_r]),
-            "steps":         avg([r["steps"]       for r in good_r]),
-            "duration":      avg([r["duration_s"]  for r in good_r]),
-            "resolved_rate": sum(r["resolved"]  for r in all_r) / len(all_r) if has_resolved else None,
-            "success_rate":  sum(r["submitted"] for r in all_r) / len(all_r),
-            "n_total":       len(all_r),
-            "n_valid":       len(good_r),
+            "energy":          avg([r["energy_kwh"] for r in measured]),
+            "energy_all":      avg([r["energy_kwh"] for r in measured]),
+            "energy_resolved": avg([r["energy_kwh"] for r in resolved_rows]) if resolved_rows else None,
+            "steps":           avg([r["steps"]       for r in measured]),
+            "duration":        avg([r["duration_s"]  for r in measured]),
+            "resolved_rate":   sum(r["resolved"]  for r in all_r) / len(all_r) if has_resolved else None,
+            "success_rate":    sum(r["submitted"] for r in all_r) / len(all_r),
+            "n_total":         len(all_r),
+            "n_valid":         len(measured),
+            "n_resolved":      len(resolved_rows),
         }
     return result
 
 
 def stats_by_task(rows: list[dict], condition: str) -> dict:
-    """energy and steps per task for a given condition (valid runs only)."""
+    """energy and steps per task for a given condition."""
     result = {}
     for task_id in TASK_TYPE:
         task_rows = [r for r in rows
                      if r["task_id"] == task_id
                      and r["condition"] == condition
-                     and r["submitted"] and r["energy_kwh"] > 0]
+                     and r["energy_kwh"] > 0]
+        res_rows = [r for r in task_rows if r["resolved"]]
         result[task_id] = {
-            "energy": avg([r["energy_kwh"] for r in task_rows]),
-            "steps":  avg([r["steps"]       for r in task_rows]),
-            "n":      len(task_rows),
+            "energy":          avg([r["energy_kwh"] for r in task_rows]),
+            "energy_resolved": avg([r["energy_kwh"] for r in res_rows]) if res_rows else None,
+            "steps":           avg([r["steps"] for r in task_rows]),
+            "n":               len(task_rows),
+            "n_resolved":      len(res_rows),
         }
     return result
 
@@ -183,42 +191,50 @@ def stats_by_task(rows: list[dict], condition: str) -> dict:
 # Console report
 # ------------------------------------------------------------------
 def print_summary(stats: dict, baseline_key: str = "baseline"):
-    b_energy = stats.get(baseline_key, {}).get("energy", 0)
-    b_steps  = stats.get(baseline_key, {}).get("steps",  0)
+    b_energy_all      = stats.get(baseline_key, {}).get("energy_all",      0)
+    b_energy_resolved = stats.get(baseline_key, {}).get("energy_resolved",  0) or 0
 
-    has_resolved = any(
-        s.get("resolved_rate") is not None for s in stats.values()
-    )
+    has_resolved = any(s.get("resolved_rate") is not None for s in stats.values())
 
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 100)
     print("CONDITION SUMMARY")
-    print("=" * 80)
-    header = (
-        f"{'Condition':<22} {'n':>4} {'Energy (kWh)':>14} {'vs base':>9} "
+    print("=" * 100)
+    print(
+        f"{'Condition':<22} {'n':>4} {'Enrg-All(kWh)':>15} {'vs base':>9} "
+        f"{'Enrg-Resolved(kWh)':>20} {'vs base':>9} "
         f"{'Steps':>7} {'Resolved' if has_resolved else 'Submit':>9}"
     )
-    print(header)
-    print("-" * 80)
+    print("-" * 100)
 
     for cond in COND_ORDER:
         if cond not in stats:
             continue
         s = stats[cond]
-        energy_delta = ((s["energy"] - b_energy) / b_energy * 100) if b_energy > 0 else 0
-        direction    = "LESS" if energy_delta < 0 else "more"
-        delta_str    = f"{abs(energy_delta):.1f}% {direction}" if b_energy > 0 and cond != baseline_key else "—"
+
+        delta_all = ((s["energy_all"] - b_energy_all) / b_energy_all * 100) if b_energy_all > 0 else 0
+        dir_all   = "LESS" if delta_all < 0 else "more"
+        str_all   = f"{abs(delta_all):.1f}% {dir_all}" if b_energy_all > 0 and cond != baseline_key else "—"
+
+        if s["energy_resolved"] is not None and b_energy_resolved > 0:
+            delta_res = ((s["energy_resolved"] - b_energy_resolved) / b_energy_resolved * 100)
+            dir_res   = "LESS" if delta_res < 0 else "more"
+            str_res   = f"{abs(delta_res):.1f}% {dir_res}" if cond != baseline_key else "—"
+            e_res_str = f"{s['energy_resolved']:.8f}"
+        else:
+            str_res   = "—"
+            e_res_str = "     n/a     "
+
         rate = s["resolved_rate"] if has_resolved and s["resolved_rate"] is not None else s["success_rate"]
         print(
             f"{COND_LABELS[cond]:<22} {s['n_valid']:>4} "
-            f"{s['energy']:>14.8f} {delta_str:>9} "
+            f"{s['energy_all']:>15.8f} {str_all:>9} "
+            f"{e_res_str:>20} {str_res:>9} "
             f"{s['steps']:>7.1f} {rate:>8.0%}"
         )
 
-    if has_resolved:
-        print("  * Energy averages include only harness-resolved (correct) runs")
-    else:
-        print("  * accuracy.csv not found — run evaluate_patches.py after batch")
-    print("=" * 80)
+    print("  * Energy-All: avg over all runs with measured energy (including failed)")
+    print("  * Energy-Resolved: avg over harness-resolved runs only")
+    print("=" * 100)
 
 
 def print_per_task(rows: list[dict]):
@@ -255,21 +271,44 @@ def print_per_task(rows: list[dict]):
 def plot_energy(stats: dict, out_dir: str):
     conds  = [c for c in COND_ORDER if c in stats and stats[c]["n_valid"] > 0]
     labels = [COND_LABELS[c] for c in conds]
-    values = [stats[c]["energy"] * 1000 for c in conds]   # → milli-kWh for readability
     colors = [COLORS[c] for c in conds]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    bars = ax.bar(labels, values, color=colors, width=0.5, edgecolor="white")
+    vals_all      = [stats[c]["energy_all"] * 1000 for c in conds]
+    vals_resolved = [
+        (stats[c]["energy_resolved"] * 1000 if stats[c]["energy_resolved"] is not None else 0)
+        for c in conds
+    ]
+    has_resolved = any(stats[c]["energy_resolved"] is not None for c in conds)
 
-    # value labels on bars
-    for bar, val in zip(bars, values):
+    x     = np.arange(len(conds))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    bars_all = ax.bar(x - width / 2, vals_all, width,
+                      color=colors, alpha=0.6, edgecolor="white", label="All runs")
+
+    if has_resolved:
+        bars_res = ax.bar(x + width / 2, vals_resolved, width,
+                          color=colors, alpha=1.0, edgecolor="white", label="Resolved runs only",
+                          hatch="//")
+        for bar, val in zip(bars_res, vals_resolved):
+            if val > 0:
+                ax.text(bar.get_x() + bar.get_width() / 2,
+                        bar.get_height() + max(vals_all) * 0.01,
+                        f"{val:.4f}", ha="center", va="bottom", fontsize=8)
+
+    for bar, val in zip(bars_all, vals_all):
         ax.text(bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + max(values) * 0.01,
-                f"{val:.4f}", ha="center", va="bottom", fontsize=9)
+                bar.get_height() + max(vals_all) * 0.01,
+                f"{val:.4f}", ha="center", va="bottom", fontsize=8)
 
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
     ax.set_ylabel("Average Energy (milli-kWh)")
-    ax.set_title("Energy Consumption per Condition\n(submitted runs only)")
-    ax.set_ylim(0, max(values) * 1.2)
+    ax.set_title("Energy Consumption per Condition\n(all runs vs. resolved runs only)")
+    ax.set_ylim(0, max(vals_all) * 1.25)
+    ax.legend()
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
     path = os.path.join(out_dir, "energy_by_condition.png")
