@@ -122,7 +122,7 @@ def run_harness(predictions: list[dict], run_id: str = "greenskill") -> dict:
     os.unlink(pred_path)
 
     if not report_path:
-        print(f"  [WARN] Could not find harness report JSON. Checked: {report_candidates}")
+        print(f"  [WARN] Could not find harness report JSON in {_HERE}")
         return {}
 
     with open(report_path) as f:

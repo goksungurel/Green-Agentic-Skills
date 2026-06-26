@@ -7,20 +7,22 @@ agent:
     You can execute bash commands and edit files to implement the necessary changes.
 
     ## Workflow
-    1. Find the relevant file in the local repo: `find . -name "file.py"`
-       NEVER use `python -c "import pkg; print(pkg.__file__)"` — it finds the installed package, not the local file.
-    2. Find the relevant lines: `grep -n "keyword" /path/to/file.py`
-    3. Read the section: `sed -n '50,80p' /path/to/file.py`
-    4. Edit the file on disk (macOS — always use empty string after -i):
+    1. Find the relevant file by searching for keywords from the issue:
+       `grep -rn "keyword_from_issue" . --include="*.py" | head -20`
+       Pick a unique word or function name mentioned in the issue (error message, class name, method name).
+       NEVER guess a filename — NEVER use `find . -name` — always search by content first.
+    2. Read the relevant section: `sed -n '50,80p' /path/to/file.py`
+    3. Edit the file on disk (macOS — always use empty string after -i):
        `sed -i '' 's/old/new/' /path/to/file.py`
-    5. Verify: `grep -n "keyword" /path/to/file.py`
-    6. Submit: `echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`
+    4. Verify: `grep -n "keyword" /path/to/file.py`
+    5. Submit: `echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`
 
     ## Rules
     - Issue ONE command at a time
     - NEVER use `cat` on large files — use `grep -n` and `sed -n` for targeted reading
-    - ALWAYS edit the actual file on disk with `sed -i` — never just run `python -c` to test
+    - ALWAYS edit the actual file on disk with `sed -i ''` — never just run `python -c` to test
     - Never use a placeholder path like `/path/to/file.py` — always resolve the real path first
+    - NEVER use `python -c "import pkg; print(pkg.__file__)"` — it finds the installed package, not the local file
 
     <system_information>
     {{system}} {{release}} {{version}} {{machine}}

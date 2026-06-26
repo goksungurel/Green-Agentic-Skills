@@ -1,13 +1,13 @@
 # Logic / Silent Bug Debugging Skill
 
 ## Strategy
-1. Read the description's expected vs actual output carefully — there is NO exception
-2. Find the file in the local repo with find: `find . -name "filename.py"`
-   NEVER use `python -c "import pkg; print(pkg.__file__)"` — that finds the installed package, not the local file.
-   Never use a placeholder path — always use the exact path from find output.
-3. Do NOT cat the whole file — it may be too long. Use grep to find the relevant lines:
+1. Read the description carefully — identify a unique keyword, function name, or error string from the issue
+2. Search for the relevant file by that keyword:
+   `grep -rn "unique_keyword_from_issue" . --include="*.py" | head -20`
+   Pick something specific: a function name, class name, or error message fragment.
+   NEVER guess a filename with `find . -name` — NEVER use `python -c "import pkg; print(pkg.__file__)"`.
+3. Do NOT cat the whole file — use grep to find the relevant lines:
    `grep -n "keyword_from_description" /real/path/to/file.py`
-   `grep -n "replace\|encode_ascii" /real/path/to/file.py`
 4. Read only the relevant section: `sed -n '100,130p' /real/path/to/file.py`
 5. Edit the file directly with sed: `sed -i '' 's/old_code/new_code/' /real/path/to/file.py`
 6. Verify the change: `grep -n "keyword" /real/path/to/file.py`

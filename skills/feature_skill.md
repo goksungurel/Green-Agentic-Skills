@@ -1,9 +1,10 @@
 # Python Feature Addition Skill
 
 ## Strategy
-1. Find the file in the local repo with find: `find . -name "filename.py"`
-   NEVER use `python -c "import pkg; print(pkg.__file__)"` — that finds the installed package, not the local file.
-   Never use a placeholder path — always use the exact path from find output.
+1. Identify a unique keyword from the issue: the class name, method name, or feature being extended.
+   Search for the relevant file by that keyword:
+   `grep -rn "unique_keyword_from_issue" . --include="*.py" | head -20`
+   NEVER guess a filename with `find . -name` — NEVER use `python -c "import pkg; print(pkg.__file__)"`.
 2. Do NOT cat the whole file — use grep to find the relevant section:
    `grep -n "feature_name\|method_name" /real/path/to/file.py`
    Then read only that section: `sed -n '50,80p' /real/path/to/file.py`
