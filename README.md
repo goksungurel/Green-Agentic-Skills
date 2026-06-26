@@ -42,6 +42,8 @@ Task type determines which skill file is injected:
 - **Logic debug tasks (13)** — silent/wrong-result bugs, no exception → `skills/logic_debug_skill.md`
 - **Feature tasks (10)** — requests to add new functionality → `skills/feature_skill.md`
 
+All skill files are adapted from the **[systematic-debugging](https://www.skillhub.club/)** skill by @obra (SkillHub S9.2 rated, `obra/superpowers`), which enforces a four-phase root-cause methodology (investigate → pattern → hypothesis → implement). The adaptation adds mini-SWE-agent specific search/edit commands and task-type-specific bug patterns.
+
 ### Model Configuration
 
 | Parameter | Value |
