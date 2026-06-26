@@ -441,9 +441,9 @@ def load_code_changes(traj_dir: str) -> list[dict]:
             continue
         task_id, condition, run_str = parts
         run = run_str.replace("run", "")
-        if run not in ("1", "2", "3"):
+        if not run.isdigit():
             continue
-        if condition not in ("baseline", "debug_skill", "feature_skill"):
+        if condition not in ("baseline", "exception_debug_skill", "logic_debug_skill", "feature_skill"):
             continue
 
         with open(os.path.join(traj_dir, fname)) as f:

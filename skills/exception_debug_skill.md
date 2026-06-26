@@ -1,10 +1,11 @@
 # Exception Debugging Skill
 
 ## Strategy
-1. Read the traceback — identify the exception type and the exact failing line
-2. Find the file in the local repo with find: `find . -name "filename.py"`
-   NEVER use `python -c "import pkg; print(pkg.__file__)"` — that finds the installed package, not the local file.
-   Never use a placeholder path — always use the exact path from find output.
+1. Read the traceback — identify the exception type and a unique keyword (class name, function name, error string)
+2. Search for the relevant file by that keyword:
+   `grep -rn "unique_keyword_from_traceback" . --include="*.py" | head -20`
+   Use the most specific term from the issue: a class name, method name, or error string fragment.
+   NEVER guess a filename with `find . -name` — NEVER use `python -c "import pkg; print(pkg.__file__)"`.
 3. Do NOT cat the whole file — use grep to find the relevant lines:
    `grep -n "failing_function_name" /real/path/to/file.py`
 4. Read only the relevant section: `sed -n '50,80p' /real/path/to/file.py`
