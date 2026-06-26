@@ -3,13 +3,18 @@
 ## Strategy
 1. Read the traceback — identify the exception type and a unique keyword (class name, function name, error string)
 2. Search for the relevant file by that keyword:
-   `grep -rn "unique_keyword_from_traceback" . --include="*.py" | head -20`
-   Use the most specific term from the issue: a class name, method name, or error string fragment.
+   `grep -rn "unique_keyword" . --include="*.py" | head -20`
+   - Search for class definitions: `grep -rn "class ClassName"` not `ClassName.method`
+   - Search for function definitions: `grep -rn "def method_name"` not `obj.method_name`
+   - If result is empty, try a DIFFERENT keyword — never repeat the same search twice
    NEVER guess a filename with `find . -name` — NEVER use `python -c "import pkg; print(pkg.__file__)"`.
 3. Do NOT cat the whole file — use grep to find the relevant lines:
    `grep -n "failing_function_name" /real/path/to/file.py`
 4. Read only the relevant section: `sed -n '50,80p' /real/path/to/file.py`
-5. Edit the file with sed: `sed -i '' 's/old_code/new_code/' /real/path/to/file.py`
+5. Edit the file:
+   - Simple one-line change: `sed -i '' 's/old_code/new_code/' /real/path/to/file.py`
+   - Multi-line or special characters (quotes, f-strings): use Python:
+     `python3 -c "c=open('/real/path/to/file.py').read(); open('/real/path/to/file.py','w').write(c.replace('old','new'))"`
 6. Verify the change: `grep -n "failing_function" /real/path/to/file.py`
 7. Submit immediately
 

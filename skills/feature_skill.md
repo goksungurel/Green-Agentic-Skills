@@ -3,14 +3,19 @@
 ## Strategy
 1. Identify a unique keyword from the issue: the class name, method name, or feature being extended.
    Search for the relevant file by that keyword:
-   `grep -rn "unique_keyword_from_issue" . --include="*.py" | head -20`
+   `grep -rn "unique_keyword" . --include="*.py" | head -20`
+   - Search for class definitions: `grep -rn "class ClassName"` not `ClassName.method`
+   - Search for function definitions: `grep -rn "def method_name"` not `obj.method_name`
+   - If result is empty, try a DIFFERENT keyword — never repeat the same search twice
    NEVER guess a filename with `find . -name` — NEVER use `python -c "import pkg; print(pkg.__file__)"`.
 2. Do NOT cat the whole file — use grep to find the relevant section:
    `grep -n "feature_name\|method_name" /real/path/to/file.py`
    Then read only that section: `sed -n '50,80p' /real/path/to/file.py`
 3. Find a similar existing feature in the same file/class — copy its pattern exactly
-4. Edit the file directly: `sed -i '' 's/old_code/new_code/' /path/to/file.py`
-5. For multi-line changes use: `cat > /path/to/file.py << 'EOF'` (full file rewrite)
+4. Edit the file:
+   - Simple one-line change: `sed -i '' 's/old_code/new_code/' /real/path/to/file.py`
+   - Multi-line or special characters (quotes, f-strings): use Python:
+     `python3 -c "c=open('/real/path/to/file.py').read(); open('/real/path/to/file.py','w').write(c.replace('old','new'))"`
 6. Verify the change: `grep -n "new_feature" /path/to/file.py`
 7. Use backward-compatible defaults so nothing breaks (new param defaults to old behavior)
 8. Submit immediately — do not refactor, document, or add tests unless asked
