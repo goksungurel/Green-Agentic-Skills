@@ -338,8 +338,8 @@ if __name__ == "__main__":
             raise SystemExit(1)
 
     n_exc     = sum(1 for t in active_batch if t["type"] == "exception_debug")
-    n_logic   = sum(1 for t in BATCH if t["type"] == "logic_debug")
-    n_feature = sum(1 for t in BATCH if t["type"] == "feature")
+    n_logic   = sum(1 for t in active_batch if t["type"] == "logic_debug")
+    n_feature = sum(1 for t in active_batch if t["type"] == "feature")
 
     print("=" * 70)
     print(f"Batch  : {len(active_batch)} tasks ({n_exc} exception_debug, {n_logic} logic_debug, {n_feature} feature)")
@@ -407,7 +407,7 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("BATCH SUMMARY  (avg energy kWh per condition)")
     print("=" * 70)
-    print(f"{'Task':<38} {'baseline':>10} {'general':>10} {'specific':>10} {'best':>8}")
+    print(f"{'Task':<38} {'baseline':>12} {'skill':>12} {'best':>8}")
     print("-" * 70)
 
     def get_avg(task_id, cond_label):
@@ -420,12 +420,11 @@ if __name__ == "__main__":
         tid = task["id"]
         short = tid.split("__")[1][:35]
         b = get_avg(tid, "baseline")
-        g = None
         s = get_avg(tid, "task_specific_skill")
-        vals = {k: v for k, v in [("baseline", b), ("general", g), ("specific", s)] if v}
+        vals = {k: v for k, v in [("baseline", b), ("skill", s)] if v}
         best = min(vals, key=vals.get) if vals else "?"
-        fmt = lambda v: f"{v:.6f}" if v else "   n/a  "
-        print(f"{short:<38} {fmt(b):>10} {fmt(g):>10} {fmt(s):>10} {best:>8}")
+        fmt = lambda v: f"{v:.6f}" if v else "     n/a"
+        print(f"{short:<38} {fmt(b):>12} {fmt(s):>12} {best:>8}")
 
     print(f"\nAll results saved to: {experiment.RESULTS_CSV}")
     print("=" * 70)

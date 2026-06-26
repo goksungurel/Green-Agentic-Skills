@@ -157,8 +157,7 @@ def append_result(row: dict):
 # Core run
 # ------------------------------------------------------------------
 def run_once(task_id: str, problem_statement: str,
-
-            condition: str, run_index: int) -> dict:
+             condition: str, run_index: int) -> dict:
     """
     Clone the task repo, run mini-swe-agent inside it, measure energy.
     The cloned directory is always deleted after the run.

@@ -31,3 +31,8 @@ results/runs_archived_*.csv
 results/batch.pid
 src/
 results/patches/
+
+# Harness output files (auto-generated in project root)
+greenskill_*.json
+gold.validate-gold.json
+*.greenskill-eval.json

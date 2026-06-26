@@ -21,7 +21,7 @@
 ## CRITICAL: You MUST edit the actual file on disk
 - Do NOT just run `python -c` to test in memory — that does not change the file
 - Do NOT just print the fix — you must write it to the file
-- Use `sed -i` or `cat > file.py << 'EOF'` to apply the fix to the actual file
+- For simple changes use `sed -i ''`; for complex/multi-line changes use Python as shown in Strategy above
 
 ## Bug Patterns and Fixes
 

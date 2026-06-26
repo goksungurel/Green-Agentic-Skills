@@ -16,14 +16,14 @@
    - Simple one-line change: `sed -i '' 's/old_code/new_code/' /real/path/to/file.py`
    - Multi-line or special characters (quotes, f-strings): use Python:
      `python3 -c "c=open('/real/path/to/file.py').read(); open('/real/path/to/file.py','w').write(c.replace('old','new'))"`
-6. Verify the change: `grep -n "new_feature" /path/to/file.py`
-7. Use backward-compatible defaults so nothing breaks (new param defaults to old behavior)
-8. Submit immediately — do not refactor, document, or add tests unless asked
+5. Verify the change: `grep -n "new_feature" /real/path/to/file.py`
+6. Use backward-compatible defaults so nothing breaks (new param defaults to old behavior)
+7. Submit immediately — do not refactor, document, or add tests unless asked
 
 ## CRITICAL: You MUST edit the actual file on disk
 - Do NOT just run `python -c` to test in memory — that does not change the file
 - Do NOT just print the fix — you must write it to the file
-- Use `sed -i` or `cat > file.py << 'EOF'` to apply the fix to the actual file
+- For simple changes use `sed -i ''`; for complex/multi-line changes use Python as shown in Strategy above
 
 ## Common Feature Patterns
 
