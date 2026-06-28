@@ -36,3 +36,6 @@ results/patches/
 greenskill_*.json
 gold.validate-gold.json
 *.greenskill-eval.json
+
+# Project proposal PDF (local only)
+*.pdf

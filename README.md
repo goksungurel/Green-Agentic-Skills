@@ -48,7 +48,7 @@ All skill files are adapted from the **[systematic-debugging](https://www.skillh
 
 | Parameter | Value |
 |---|---|
-| Model | `ollama/qwen2.5-coder:7b` |
+| Model | `ollama/qwen2.5-coder:7b-32k` (num_ctx=32768) |
 | Temperature | `0.2` (low but non-zero — controlled reproducibility) |
 | Time limit | 120s per step |
 | Max steps | 10 |
