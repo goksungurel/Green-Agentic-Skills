@@ -57,7 +57,8 @@ CSV_HEADERS = [
 def build_prompt(skill_file: str | None, problem_statement: str) -> str:
     """Prepend skill content to the problem statement (the approach that works)."""
     if skill_file and os.path.isfile(skill_file):
-        return open(skill_file).read() + "\n\n---\n\n" + problem_statement
+        with open(skill_file) as f:
+            return f.read() + "\n\n---\n\n" + problem_statement
     return problem_statement
 
 
@@ -284,7 +285,7 @@ def run_condition(task_id: str, problem_statement: str,
 
     measured = [r for r in results if r["energy_kwh"] > 0]
     n_measured = len(measured)
-    avg = lambda key: sum(r[key] for r in measured) / n_measured if measured else 0.0
+    avg = lambda key: sum(r[key] for r in measured) / n_measured if n_measured > 0 else 0.0
 
     print(f"  --> avg energy    : {avg('energy_kwh'):.8f} kWh")
     print(f"  --> avg duration  : {avg('duration_s'):.1f} s")

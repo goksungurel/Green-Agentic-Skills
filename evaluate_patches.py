@@ -109,7 +109,7 @@ def run_harness(predictions: list[dict], run_id: str = "greenskill") -> dict:
         "--run_id", run_id,
     ]
 
-    result = subprocess.run(cmd, capture_output=False, text=True)
+    result = subprocess.run(cmd, capture_output=False, text=True, timeout=3600)
 
     # harness writes <model_name_or_path>.<run_id>.json
     # model_name_or_path varies per prediction so glob for *.{run_id}.json
