@@ -70,6 +70,7 @@ model:
     {%- endif -%}
   model_kwargs:
     drop_params: true
+    temperature: 0.2
 
 cost_tracking: ignore_errors
 time_limit: 120

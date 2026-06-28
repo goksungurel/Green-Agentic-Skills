@@ -29,8 +29,8 @@ from codecarbon import EmissionsTracker
 # Configuration
 # ------------------------------------------------------------------
 N_RUNS      = 5
-MAX_STEPS   = 10
-TIMEOUT     = 800
+MAX_STEPS   = 15
+TIMEOUT     = 1200
 RESULTS_CSV = "results/runs.csv"
 TRAJ_DIR    = "results/trajectories"
 PATCH_DIR   = "results/patches"
@@ -201,7 +201,7 @@ def run_once(task_id: str, problem_statement: str,
             [
                 "bash", "-c",
                 f"mini-swe-agent "
-                f"--model ollama/qwen2.5-coder:7b "
+                f"--model ollama/qwen2.5-coder:7b-32k "
                 f'--task "$(cat {prompt_file})" '
                 f"--yolo "
                 f"--exit-immediately "

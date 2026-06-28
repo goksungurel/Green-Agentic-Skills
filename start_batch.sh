@@ -1,5 +1,5 @@
 #!/bin/bash
-# Starts the full batch experiment (30 tasks x 2 conditions x 5 runs = 300 runs).
+# Starts the full batch experiment (30 tasks x 2 conditions x 5 runs = 300 runs, max_steps=15).
 # WARNING: --fresh archives existing runs.csv — only use for a clean start.
 # - caffeinate: prevents macOS sleep
 # - nohup: keeps process alive if terminal is closed
