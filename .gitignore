@@ -29,8 +29,15 @@ repos/
 *.bak
 results/runs_archived_*.csv
 results/batch.pid
+results/harness.pid
 src/
+
+# Experiment results (never commit)
+results/runs.csv
+results/accuracy.csv
 results/patches/
+results/trajectories/
+results/figures/
 
 # Harness output files (auto-generated in project root)
 greenskill_*.json
@@ -39,3 +46,8 @@ gold.validate-gold.json
 
 # Project proposal PDF (local only)
 *.pdf
+
+# Local notes and tooling
+RAPOR.md
+logs/
+.claude/

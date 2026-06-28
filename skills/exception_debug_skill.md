@@ -1,14 +1,14 @@
 # Exception Bug Patterns
 > Source: systematic-debugging by @obra (skillhub.club · S9.2)
 
-## Step 1 — Search Keywords
+## Search Keywords
 Extract the exception class and the failing function from the traceback.
 Search for the function that raises, not the caller:
 - `TypeError: unsupported operand` → search for the operation site, not the caller
 - `AttributeError: 'NoneType'` → search for the attribute being accessed
 - `LinAlgError` → search for the numpy/scipy call site
 
-## Step 2 — What to Look For
+## What to Look For
 - Find a **similar working code path** in the same file — compare what it does differently
 - Check whether the bad value comes from the **caller** (wrong type passed in) or from **within** the function (wrong transformation)
 
@@ -23,6 +23,6 @@ Search for the function that raises, not the caller:
 | `ValueError` from library | invalid input not validated | add guard before the library call |
 | Exception not caught | missing except branch | add to existing `except (A, B)` tuple |
 
-## Step 3 — Fix Rule
+## Fix Rule
 Fix at the **source of the bad value**, not at the exception site.
 Make the smallest possible change — one line if possible.
