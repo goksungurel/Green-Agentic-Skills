@@ -5,6 +5,11 @@
 The issue description names the broken sub-case (e.g. "nested models", "3+ objects", "multiline").
 Search for the function or class handling that sub-case directly.
 
+- Issue names a function → `grep -rn "def function_name" . --include="*.py"`
+- Issue names a class → `grep -rn "class ClassName" . --include="*.py"`
+- Issue is vague → grep for the data type or module name mentioned in the issue
+- NEVER repeat the same search — if empty result, try a different keyword
+
 ## Step 2 — What to Look For
 - Find the **conditional branch** or **recursive call** that handles the broken sub-case
 - Compare it against a working branch in the same function
