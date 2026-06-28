@@ -1,11 +1,11 @@
 # Feature Addition Patterns
 > Source: systematic-debugging by @obra (skillhub.club · S9.2)
 
-## Step 1 — Search Keywords
+## Search Keywords
 Search for the **existing similar feature** first, not the new one.
 Find how the codebase already does the closest thing to what the issue asks for.
 
-## Step 2 — What to Look For
+## What to Look For
 - Find a **similar existing method or parameter** in the same class/file
 - Read how it is **called by other code** before touching the signature
 - Copy the existing pattern exactly — do not invent a new style
@@ -20,7 +20,7 @@ Find how the codebase already does the closest thing to what the issue asks for.
 | Expose new attribute | near `__version__` or `__all__` | add attribute next to existing similar ones |
 | Extend repr / output | `__repr__` or format function | add new field following adjacent field format |
 
-## Step 3 — Fix Rule
+## Fix Rule
 - Use **backward-compatible defaults** — existing callers must not break
 - If the issue shows exact code, implement it literally
 - Do NOT add new imports unless strictly required

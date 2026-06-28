@@ -128,7 +128,7 @@ def run_harness(predictions: list[dict], run_id: str = "greenskill") -> dict:
     with open(report_path) as f:
         report = json.load(f)
 
-    resolved_ids = set(report.get("resolved_ids", []) + report.get("completed_ids", []))
+    resolved_ids = set(report.get("resolved_ids", []))
 
     # build resolved map: instance_id → bool
     # Note: same task can appear multiple times (different runs), so we use full pred info

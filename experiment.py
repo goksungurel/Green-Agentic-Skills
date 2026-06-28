@@ -73,8 +73,9 @@ def _load_task_meta() -> dict:
     with open(TASKS_CSV, newline="") as f:
         for row in csv.DictReader(f):
             meta[row["instance_id"]] = {
-                "repo":   row["repo"],
-                "commit": row["base_commit"],
+                "repo":               row["repo"],
+                "commit":             row["base_commit"],
+                "problem_statement":  row["problem_statement"],
             }
     return meta
 
@@ -207,7 +208,7 @@ def run_once(task_id: str, problem_statement: str,
                 f"--yolo "
                 f"--exit-immediately "
                 f"-c {MINI_YAML} "
-                f"-c agent.max_steps={MAX_STEPS} "
+                f"-c agent.step_limit={MAX_STEPS} "
                 f"-o {traj_file}"
             ],
             capture_output=True, text=True,
@@ -306,12 +307,7 @@ if __name__ == "__main__":
     ensure_results_dir()
 
     task_id = "psf__requests-2317"
-    problem = (
-        "method = builtin_str(method) problem. "
-        "In requests/sessions.py there is: method = builtin_str(method). "
-        "This converts a binary string like b'GET' to the literal string \"b'GET'\" in Python 3, "
-        "causing 404 errors. The fix is to decode the bytes properly instead."
-    )
+    problem = get_task_meta(task_id).get("problem_statement", "")
 
     print("=" * 60)
     print(f"Task  : {task_id}")
