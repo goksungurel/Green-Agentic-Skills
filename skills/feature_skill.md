@@ -13,7 +13,7 @@ Find how the codebase already does the closest thing to what the issue asks for.
 ## Common Patterns
 | Feature Request | Where to Look | Fix Pattern |
 |---|---|---|
-| Add a parameter | existing method signature | `def method(self, ..., new_param=None)` + branch inside |
+| Add a parameter | existing method signature | `def REAL_METHOD_NAME(self, ..., REAL_PARAM_NAME=None)` + branch inside |
 | Add file open mode | `open(path, "r")` call site | replace `"r"` with `mode` param defaulting to `"r"` |
 | Add validation / raise | first use of the value | add `if bad_condition: raise ValueError(...)` guard |
 | Case-insensitive match | the comparison expression | `.upper()` on both sides or `re.IGNORECASE` |
@@ -25,3 +25,7 @@ Find how the codebase already does the closest thing to what the issue asks for.
 - If the issue shows exact code, implement it literally
 - Do NOT add new imports unless strictly required
 - Do NOT change public API signatures except to add an optional param
+
+Note: ALL_CAPS names above (REAL_METHOD_NAME, REAL_PARAM_NAME) are placeholders,
+not literal text — always substitute the actual names you find in the codebase.
+Never type "REAL_METHOD_NAME" or "REAL_PARAM_NAME" literally into a command.

@@ -29,7 +29,8 @@ from codecarbon import EmissionsTracker
 # Configuration
 # ------------------------------------------------------------------
 N_RUNS      = 5
-MAX_STEPS   = 15
+MAX_STEPS   = 25  # was 15 — 63% of runs hit LimitsExceeded before submitting;
+                   # pilot with this value first, raise to ~35-40 if still high
 TIMEOUT     = 1200
 RESULTS_CSV = "results/runs.csv"
 TRAJ_DIR    = "results/trajectories"
@@ -51,7 +52,7 @@ SKILL_FILES = {
 CSV_HEADERS = [
     "timestamp", "task_id", "condition", "run",
     "emissions_kg", "energy_kwh", "duration_s",
-    "returncode", "exit_status", "steps", "code_changed"
+    "returncode", "exit_status", "steps", "code_changed", "valid_syntax"
 ]
 
 def build_prompt(skill_file: str | None, problem_statement: str) -> str:
@@ -190,6 +191,9 @@ def run_once(task_id: str, problem_statement: str,
 
     env = os.environ.copy()
     env["MSWEA_COST_TRACKING"] = "ignore_errors"
+    # Make dedup_agent.py importable regardless of cwd (the subprocess runs
+    # with cwd=repo_dir, the cloned task repo, not this project directory).
+    env["PYTHONPATH"] = _HERE + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
 
     timed_out  = False
     returncode = -1
@@ -207,6 +211,7 @@ def run_once(task_id: str, problem_statement: str,
                 f'--task "$(cat {prompt_file})" '
                 f"--yolo "
                 f"--exit-immediately "
+                f"--agent-class dedup_agent.DedupAgent "
                 f"-c {MINI_YAML} "
                 f"-c agent.step_limit={MAX_STEPS} "
                 f"-o {traj_file}"
@@ -224,6 +229,7 @@ def run_once(task_id: str, problem_statement: str,
     finally:
         # Check for real file changes and save patch before sandbox is deleted
         actually_changed = False
+        valid_syntax = "n/a"  # only meaningful when actually_changed is True
         if repo_dir and os.path.isdir(repo_dir):
             diff = subprocess.run(
                 ["git", "-C", repo_dir, "diff", "HEAD"],
@@ -237,6 +243,29 @@ def run_once(task_id: str, problem_statement: str,
                 )
                 with open(patch_path, "w") as pf:
                     pf.write(diff.stdout)
+
+                # Catch broken edits the model never verified itself (e.g. a
+                # mangled sed that leaves invalid Python behind). This is
+                # independent of the agent's own verify step, so it still
+                # catches the case where the agent skipped verification.
+                changed_files = subprocess.run(
+                    ["git", "-C", repo_dir, "diff", "--name-only", "HEAD"],
+                    capture_output=True, text=True,
+                ).stdout.split()
+                py_files = [f for f in changed_files if f.endswith(".py")]
+                syntax_ok = True
+                for rel_path in py_files:
+                    abs_path = os.path.join(repo_dir, rel_path)
+                    if not os.path.isfile(abs_path):
+                        continue  # file was deleted, nothing to compile
+                    check = subprocess.run(
+                        ["python3", "-m", "py_compile", abs_path],
+                        capture_output=True, text=True,
+                    )
+                    if check.returncode != 0:
+                        syntax_ok = False
+                        break
+                valid_syntax = syntax_ok
         if repo_dir:
             shutil.rmtree(repo_dir, ignore_errors=True)
         os.unlink(prompt_file)
@@ -267,6 +296,7 @@ def run_once(task_id: str, problem_statement: str,
         "exit_status":    traj["exit_status"],
         "steps":          traj["steps"],
         "code_changed":   actually_changed,
+        "valid_syntax":   valid_syntax,
     }
 
 

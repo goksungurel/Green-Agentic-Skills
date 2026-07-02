@@ -9,21 +9,43 @@ agent:
     ## Workflow
     1. Find the relevant file by searching for a keyword FROM the issue text:
        `grep -rn "keyword" . --include="*.py" | head -20`
-       - Search for class definitions: `grep -rn "class Blueprint"` not `Blueprint.__init__`
-       - Search for function definitions: `grep -rn "def method_name"` not `module.method_name`
+       (Replace "keyword" with a real word taken from the issue text above — never
+       run the word "keyword" literally, it is just a placeholder in this sentence.)
+       - If the issue names a class, search for where that class is DEFINED, not where
+         it is called. E.g. for a class named Foo, search `grep -rn "class Foo"` —
+         do not search for `Foo.some_method(...)` call sites.
+       - If the issue names a function, search for where that function is DEFINED,
+         not where it is called. E.g. for a function named bar, search
+         `grep -rn "def bar"` — do not search for `module.bar(...)` call sites.
+       - These are illustrations of the PATTERN, not literal commands — "Foo" and
+         "bar" must be replaced with the actual class/function name from THIS issue.
        - If result is empty, try a DIFFERENT keyword — never repeat the same search twice.
-    2. Read the relevant section: `sed -n '50,80p' /path/to/file.py`
-    3. Edit the file. For simple one-line changes use sed:
-       `sed -i '' 's/old/new/' /path/to/file.py`
-       For multi-line or complex changes (quotes, special chars) use Python:
+    2. Read the relevant section: `sed -n '50,80p' FOUND_FILE_PATH`
+       (FOUND_FILE_PATH is NOT a real path — it is a placeholder meaning "the
+       actual file path you found in step 1". Always substitute the real path,
+       e.g. `sed -n '50,80p' ./django/db/migrations/executor.py`. Never type
+       the literal text `FOUND_FILE_PATH` or `/path/to/file.py` into a command.)
+    3. Edit the file — ALWAYS use this exact Python pattern, for ANY change
+       (one line or many, simple or complex):
        ```
        python3 -c "
-       content = open('/path/to/file.py').read()
+       content = open('FOUND_FILE_PATH').read()
        content = content.replace('old_code', 'new_code')
-       open('/path/to/file.py', 'w').write(content)
+       open('FOUND_FILE_PATH', 'w').write(content)
        "
        ```
-    4. Verify: `grep -n "keyword" /path/to/file.py`
+       (Replace FOUND_FILE_PATH with the real path. Same rule as before — never
+       type FOUND_FILE_PATH literally.)
+       - Do NOT use `sed -i` to edit files. `sed` is only for READING a section
+         with `sed -n` (step 2) — never for writing/changing a file. `sed -i`
+         editing is forbidden because its quoting/escaping rules on this system
+         are unreliable: it has silently failed to match patterns (no-op edit)
+         and has written a literal `\n` (two characters: backslash + n) into
+         files instead of a real newline, breaking Python syntax. `python3`'s
+         `.replace()` does not have these problems.
+    4. Verify, in this order — do NOT skip either check:
+       a. Confirm the edit actually applied: `git diff -- FOUND_FILE_PATH` (replace with the real path; if empty, your edit did nothing — fix the command and retry, do not submit)
+       b. Confirm the file is still valid Python: `python3 -m py_compile FOUND_FILE_PATH` (replace with the real path; if this errors, your edit broke the file — fix it before submitting)
     5. Submit: `echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT`
 
     ## Rules
@@ -31,8 +53,12 @@ agent:
     - NEVER repeat a failed command — if a command returns an error or empty output, try a DIFFERENT approach
     - NEVER use `cat` on large files — use `grep -n` and `sed -n` for targeted reading
     - ALWAYS edit the actual file on disk — never just run `python -c` to test without writing
-    - Never use a placeholder path like `/path/to/file.py` — always resolve the real path first
+    - Never type a placeholder path literally — `FOUND_FILE_PATH` and `/path/to/file.py`
+      are NOT real paths, they only appear in this prompt's examples to mean "the
+      actual file path you found." Always resolve and use the real path.
     - NEVER use `python -c "import pkg; print(pkg.__file__)"` — it finds the installed package, not the local file
+    - NEVER run `git commit`, `git push`, `git checkout`, `git merge`, or `git pull` — you are not managing version control, only editing files. `git diff` is the only git command you should ever need.
+    - NEVER do a blind find-and-replace of an exception class name across a whole file or multiple files just because it appeared in a traceback — read the surrounding code first and make sure the replacement is semantically correct at each site, not just textually similar.
 
     <system_information>
     {{system}} {{release}} {{version}} {{machine}}
@@ -49,8 +75,13 @@ environment:
     LESS: -R
     PIP_PROGRESS_BAR: 'off'
     TQDM_DISABLE: '1'
+  timeout: 120  # per-command timeout in seconds (was a dead root-level
+                 # `time_limit: 120` key that never actually applied —
+                 # real default was 30s, this is the correct field)
 
 model:
+  cost_tracking: ignore_errors  # was only a dead root-level key before;
+                                  # now actually lives where the schema expects it
   observation_template: |
     {%- if output.output | length < 10000 -%}
     {
@@ -71,6 +102,3 @@ model:
   model_kwargs:
     drop_params: true
     temperature: 0.2
-
-cost_tracking: ignore_errors
-time_limit: 120
