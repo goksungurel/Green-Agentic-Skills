@@ -51,17 +51,16 @@ Skill files are adapted from the **[systematic-debugging](https://www.skillhub.c
 | Model | `ollama/qwen2.5-coder:7b-32k` (num_ctx=32768 explicit) |
 | Temperature | `0.2` (low but non-zero — controlled reproducibility) |
 | Time limit | 120s per step |
-| Max steps | 15 |
+| Max steps | 25 |
 | Timeout | 1200s per run |
 
-### Success Metric
+### Outcome Metrics Per Run
 
-A run is counted as **successful** only when all three conditions are met:
-1. `exit_status == Submitted` — agent completed the task
-2. `code_changed == True` — agent actually modified a file (verified via `git diff HEAD`)
-3. No timeout occurred
+A run is **submitted** when `exit_status == Submitted`. A submitted run is further classified by:
+- `code_changed == True` — agent actually modified a file (verified via `git diff HEAD`)
+- `valid_syntax == True` — every changed `.py` file passes `py_compile` (catches broken patches the agent never verified)
 
-Runs where the agent submitted without making any file changes are **not** counted as successful.
+Runs where the agent hit the step limit without submitting are recorded as `LimitsExceeded`. Runs aborted by the dedup guard (see `dedup_agent.py`) are recorded as `StuckRepetition`.
 
 ### Accuracy Metric
 
@@ -73,9 +72,9 @@ Patches are evaluated with the SWE-bench Docker harness (`evaluate_patches.py`).
 |---|---|
 | `energy_kwh` | Energy consumed (kWh), measured by CodeCarbon |
 | `steps` | Number of LLM calls the agent made |
-| `exit_status` | `Submitted` or `RepeatedFormatError` |
+| `exit_status` | `Submitted`, `LimitsExceeded`, `StuckRepetition`, or `RepeatedFormatError` |
 | `code_changed` | `True` if agent modified at least one file |
-| `success` | `True` only when submitted + code changed + no timeout |
+| `valid_syntax` | `True` / `False` if code changed; `n/a` if no file was modified |
 | `duration_s` | Wall-clock time in seconds |
 
 ---
@@ -85,13 +84,19 @@ Patches are evaluated with the SWE-bench Docker harness (`evaluate_patches.py`).
 ```
 greenskill/
 ├── experiment.py          # Core pipeline: clone repo → run agent → measure energy → save patch
+├── dedup_agent.py         # Harness-level guard: intercepts stuck repetition loops, blocks empty-diff submits
 ├── run_batch.py           # Batch runner: 30 tasks × 2 conditions × 5 runs = 300 runs, resumes if interrupted
 ├── evaluate_patches.py    # Runs SWE-bench harness on saved patches → writes accuracy.csv
 ├── analyze.py             # Reads runs.csv + accuracy.csv, prints tables, saves figures
 ├── select_tasks.py        # One-time: selects 30 tasks from SWE-bench Lite
 ├── mini.yaml              # Agent config: system prompt, workflow, temperature, time limit
-├── start_batch.sh         # Start fresh 300-run batch (archives old results, uses caffeinate)
-├── resume_batch.sh        # Resume interrupted batch (continues from last completed run)
+├── start_pilot.sh         # Run a small pilot batch
+├── start_validation.sh    # Run validation suite (blueprint/placeholder fix checks)
+├── start_validation_dedup.sh  # Run validation suite for dedup guard
+├── start_validation_v2.sh     # Run round-2 validation suite
+├── validate_blueprint_fix.py  # Check blueprint/placeholder bug recurrence
+├── validate_dedup_fix.py      # Check dedup guard behavior
+├── validate_fixes_v2.py       # Round-2 validation checker
 ├── skills/
 │   ├── exception_debug_skill.md  # Bug patterns for exceptions/tracebacks
 │   ├── logic_debug_skill.md      # Bug patterns for silent/wrong-result bugs
@@ -114,11 +119,8 @@ greenskill/
 # Activate environment
 source venv/bin/activate
 
-# Start full batch from scratch (archives old results, prevents sleep with caffeinate)
-./start_batch.sh
-
-# Resume after interruption (continues from where it left off)
-./resume_batch.sh
+# Start full batch (300 runs)
+python3 run_batch.py
 
 # Monitor progress
 tail -f results/batch_run.log
@@ -138,7 +140,7 @@ python3 analyze.py
 ```
 timestamp, task_id, condition, run,
 emissions_kg, energy_kwh, duration_s,
-returncode, exit_status, steps, code_changed, success
+returncode, exit_status, steps, code_changed, valid_syntax
 ```
 Rows with `energy_kwh == 0` represent timed-out or measurement-failed runs and are excluded from energy averages in `analyze.py`.
 
