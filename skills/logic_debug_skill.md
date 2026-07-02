@@ -5,8 +5,13 @@
 The issue description names the broken sub-case (e.g. "nested models", "3+ objects", "multiline").
 Search for the function or class handling that sub-case directly.
 
-- Issue names a function → `grep -rn "def function_name" . --include="*.py"`
-- Issue names a class → `grep -rn "class ClassName" . --include="*.py"`
+- Issue names a function → `grep -rn "def REAL_FUNCTION_NAME" . --include="*.py"`
+  (REAL_FUNCTION_NAME is NOT literal text — it is a placeholder. Replace it
+  with the actual function name taken from the issue text above. Never type
+  the literal words "REAL_FUNCTION_NAME" or "function_name" into a command.)
+- Issue names a class → `grep -rn "class REAL_CLASS_NAME" . --include="*.py"`
+  (Same rule — REAL_CLASS_NAME is a placeholder. Substitute the actual class
+  name from the issue. Never type "REAL_CLASS_NAME" or "ClassName" literally.)
 - Issue is vague → grep for the data type or module name mentioned in the issue
 - NEVER repeat the same search — if empty result, try a different keyword
 

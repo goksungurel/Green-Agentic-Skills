@@ -97,6 +97,7 @@ def load_runs(csv_path: str) -> list[dict]:
         r["submitted"]    = r["exit_status"] == "Submitted"
         r["code_changed"] = r.get("code_changed", "") == "True"
         r["resolved"]     = False  # filled in by merge_accuracy()
+        r["evaluated"]    = False  # was this run actually scored by the harness?
     return rows
 
 
@@ -113,10 +114,21 @@ def load_accuracy(csv_path: str) -> dict:
 
 
 def merge_accuracy(rows: list[dict], accuracy: dict) -> list[dict]:
-    """Attach resolved field from accuracy.csv to each run row."""
+    """Attach resolved field from accuracy.csv to each run row.
+
+    `evaluated` tracks whether this exact run was actually scored by the
+    harness at all (key present in accuracy.csv), as opposed to `resolved`
+    which is only True/False for runs that *were* evaluated. Without this
+    distinction, a condition with 0/10 resolved (but evaluated) and a
+    condition with 0/10 *evaluated* (e.g. no patches were ever produced)
+    looked identical downstream — both showed resolved_rate=None and the
+    "Resolved" table column silently fell back to printing the unrelated
+    submit-rate number for the former, mislabeled as a resolved rate.
+    """
     for r in rows:
         key = (r["task_id"], r["condition"], r["run"])
-        r["resolved"] = accuracy.get(key, False)
+        r["evaluated"] = key in accuracy
+        r["resolved"]  = accuracy.get(key, False)
     return rows
 
 
@@ -149,21 +161,27 @@ def stats_by_condition(rows: list[dict]) -> dict:
 
     result = {}
     for cond in all_by_cond:
-        all_r         = all_by_cond[cond]
-        measured      = by_cond[cond]
-        resolved_rows = [r for r in measured if r["resolved"]]
-        has_resolved  = any(r["resolved"] for r in all_r)
+        all_r          = all_by_cond[cond]
+        measured       = by_cond[cond]
+        resolved_rows  = [r for r in measured if r["resolved"]]
+        evaluated_rows = [r for r in all_r if r["evaluated"]]
+        # resolved_rate is computable as soon as ANY run in this condition was
+        # actually scored by the harness — even if the result was 0% resolved.
+        # (Previously this only triggered if >=1 run was resolved=True, so a
+        # genuine 0% resolved condition fell back to printing success_rate
+        # mislabeled as "Resolved".)
         result[cond] = {
             "energy":          avg([r["energy_kwh"] for r in measured]),
             "energy_all":      avg([r["energy_kwh"] for r in measured]),
             "energy_resolved": avg([r["energy_kwh"] for r in resolved_rows]) if resolved_rows else None,
             "steps":           avg([r["steps"]       for r in measured]),
             "duration":        avg([r["duration_s"]  for r in measured]),
-            "resolved_rate":   sum(r["resolved"]  for r in all_r) / len(all_r) if has_resolved else None,
+            "resolved_rate":   (len(resolved_rows) / len(evaluated_rows)) if evaluated_rows else None,
             "success_rate":    sum(r["submitted"] for r in all_r) / len(all_r),
             "n_total":         len(all_r),
             "n_valid":         len(measured),
             "n_resolved":      len(resolved_rows),
+            "n_evaluated":     len(evaluated_rows),
         }
     return result
 
@@ -224,12 +242,19 @@ def print_summary(stats: dict, baseline_key: str = "baseline"):
             str_res   = "—"
             e_res_str = "     n/a     "
 
-        rate = s["resolved_rate"] if has_resolved and s["resolved_rate"] is not None else s["success_rate"]
+        if has_resolved:
+            # Show this condition's own resolved_rate if it has evaluated runs.
+            # If it has none (no patches were ever scored for it), show "n/a"
+            # explicitly rather than silently substituting the unrelated
+            # submit-rate under a column header that says "Resolved".
+            rate_str = f"{s['resolved_rate']:>8.0%}" if s["resolved_rate"] is not None else "     n/a"
+        else:
+            rate_str = f"{s['success_rate']:>8.0%}"
         print(
             f"{COND_LABELS[cond]:<22} {s['n_valid']:>4} "
             f"{s['energy_all']:>15.8f} {str_all:>9} "
             f"{e_res_str:>20} {str_res:>9} "
-            f"{s['steps']:>7.1f} {rate:>8.0%}"
+            f"{s['steps']:>7.1f} {rate_str}"
         )
 
     print("  * Energy-All: avg over all runs with measured energy (including failed)")
@@ -426,12 +451,28 @@ def plot_per_task_steps(rows: list[dict], out_dir: str):
 # ------------------------------------------------------------------
 # Real code-change analysis (trajectory-level)
 # ------------------------------------------------------------------
-def load_code_changes(traj_dir: str) -> list[dict]:
+def load_code_changes(traj_dir: str, csv_rows: list[dict] | None = None) -> list[dict]:
     """
     Scans every trajectory JSON for bash commands that write to a file.
-    Returns one dict per run: task_id, condition, run, changed (bool), submitted (bool).
-    Only considers current-experiment runs (run1/2/3, known conditions).
+    Returns one dict per run: task_id, condition, run, changed (bool), submitted (bool),
+    valid (bool or None).
+
+    `valid` comes from runs.csv's `valid_syntax` column (a real py_compile check
+    done by experiment.py on every changed .py file) — NOT from the regex scan
+    above, which only detects that an edit *command* was issued, not whether the
+    result was syntactically correct Python. A run can show changed=True here
+    and still have produced a broken file (valid=False) — see CLAUDE.md's
+    "Known Issues" entry on sed `\n`-in-replacement breaking files silently.
+    `valid` is None when the run never changed code (valid_syntax="n/a" in CSV)
+    or has no matching CSV row.
     """
+    valid_lookup = {}
+    if csv_rows:
+        for r in csv_rows:
+            key = (r["task_id"], r["condition"], r["run"])
+            vs = r.get("valid_syntax", "n/a")
+            valid_lookup[key] = None if vs == "n/a" else (vs == "True")
+
     results = []
     for fname in sorted(os.listdir(traj_dir)):
         if not fname.endswith(".json"):
@@ -470,39 +511,47 @@ def load_code_changes(traj_dir: str) -> list[dict]:
             "run":       run,
             "changed":   changed,
             "submitted": submitted,
+            "valid":     valid_lookup.get((task_id, condition, run)),
         })
     return results
 
 
 def print_code_change_summary(change_rows: list[dict]):
-    print("\n" + "=" * 72)
+    print("\n" + "=" * 88)
     print("REAL CODE CHANGES  (bash file-edit commands found in trajectory)")
-    print("=" * 72)
+    print("=" * 88)
     print(f"{'Condition':<16} {'Runs':>5} {'Changed':>8} {'Change%':>8} "
-          f"{'Submitted':>10} {'Changed+Sub':>12}")
-    print("-" * 72)
+          f"{'Valid':>6} {'Valid%':>7} {'Submitted':>10} {'Changed+Sub':>12}")
+    print("-" * 88)
 
     for cond in COND_ORDER:
         rows = [r for r in change_rows if r["condition"] == cond]
         if not rows:
             continue
         changed     = [r for r in rows if r["changed"]]
+        # "valid" here means changed AND confirmed py_compile-clean — a broken
+        # patch (valid_syntax=False, e.g. the sed `\n` footgun) does NOT count.
+        valid_chg   = [r for r in rows if r["changed"] and r["valid"] is True]
         submitted   = [r for r in rows if r["submitted"]]
         chg_sub     = [r for r in rows if r["changed"] and r["submitted"]]
         pct = len(changed) / len(rows) * 100
+        valid_pct = (len(valid_chg) / len(changed) * 100) if changed else 0
         print(f"{COND_LABELS[cond]:<16} {len(rows):>5} {len(changed):>8} "
-              f"{pct:>7.0f}% {len(submitted):>10} {len(chg_sub):>12}")
+              f"{pct:>7.0f}% {len(valid_chg):>6} {valid_pct:>6.0f}% "
+              f"{len(submitted):>10} {len(chg_sub):>12}")
 
-    all_sub  = [r for r in change_rows if r["submitted"]]
-    real_sub = [r for r in change_rows if r["submitted"] and r["changed"]]
-    print("-" * 72)
+    all_sub   = [r for r in change_rows if r["submitted"]]
+    real_sub  = [r for r in change_rows if r["submitted"] and r["changed"]]
+    real_valid = [r for r in change_rows if r["submitted"] and r["changed"] and r["valid"] is True]
+    print("-" * 88)
     print(f"{'TOTAL':<16} {len(change_rows):>5} "
           f"{sum(r['changed'] for r in change_rows):>8}")
     print(f"\nOf {len(all_sub)} Submitted runs: "
-          f"{len(real_sub)} ({len(real_sub)/len(all_sub)*100:.0f}%) "
-          f"had real code changes — "
-          f"{len(all_sub)-len(real_sub)} submitted without editing anything.")
-    print("=" * 72)
+          f"{len(real_sub)} ({len(real_sub)/len(all_sub)*100:.0f}%) had real code changes, "
+          f"but only {len(real_valid)} ({len(real_valid)/len(all_sub)*100:.0f}%) of those "
+          f"changes were syntactically valid Python — "
+          f"{len(real_sub)-len(real_valid)} changed run(s) produced a broken patch.")
+    print("=" * 88)
 
 
 def plot_code_change_rate(change_rows: list[dict], out_dir: str):
@@ -554,7 +603,7 @@ if __name__ == "__main__":
     print_summary(stats)
     print_per_task(rows)
 
-    change_rows = load_code_changes(TRAJ_DIR)
+    change_rows = load_code_changes(TRAJ_DIR, csv_rows=rows)
     print_code_change_summary(change_rows)
 
     print("\nGenerating figures...")

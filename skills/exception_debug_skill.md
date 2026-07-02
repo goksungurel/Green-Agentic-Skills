@@ -2,17 +2,21 @@
 > Source: systematic-debugging by @obra (skillhub.club · S9.2)
 
 ## Search Keywords
-Extract the exception class and the failing function from the traceback.
+Extract the **function name** or **class name** from the traceback — then grep for that name in the local repo.
+NEVER grep for the exception message text (e.g. `TypeError: ...`) — it will not appear in any source file.
+NEVER use file paths from the traceback (e.g. `/Users/reporter/opt/anaconda3/.../widgets.py`) — those are the reporter's machine paths, they do NOT exist in the local repo. Take only the filename (e.g. `widgets.py`) and find it with grep:
+`grep -rn "def REAL_FUNCTION_NAME" . --include="*.py" | head -20`
 Search for the function that raises, not the caller:
-- `TypeError: unsupported operand` → search for the operation site, not the caller
-- `AttributeError: 'NoneType'` → search for the attribute being accessed
-- `LinAlgError` → search for the numpy/scipy call site
+- `TypeError: unsupported operand` → grep for the **function name** on the line that raises, e.g. `grep -rn "def set_val"` — not the text `"TypeError"`
+- `AttributeError: 'NoneType'` → grep for the **attribute name** being accessed
+- `LinAlgError` → grep for the **numpy/scipy call** site by function name
 
 ## What to Look For
 - Find a **similar working code path** in the same file — compare what it does differently
 - Check whether the bad value comes from the **caller** (wrong type passed in) or from **within** the function (wrong transformation)
 
 ## Common Fixes
+The "Exception" column below is a **category description**, NOT a grep pattern — never run these strings as grep commands.
 | Exception | Root Cause | Fix |
 |---|---|---|
 | `TypeError: boolean subtract` | bool array used as numeric | `data.astype(float)` before operation |

@@ -20,7 +20,7 @@ from datetime import datetime
 
 import experiment
 
-N_RUNS = 5  # per condition (30 tasks x 2 conditions x 5 runs = 300 runs total)
+N_RUNS = 5
 
 # Each task tagged with type only — problem_statement loaded from selected_tasks.csv at runtime
 BATCH = [
