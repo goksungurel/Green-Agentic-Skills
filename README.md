@@ -17,7 +17,7 @@ This project was developed as part of a research initiative on **Green Agentic A
 | **Supervisor** | Dr. June Sallou — Wageningen University & Research |
 | **Author** | Göksun Gürel — Izmir University of Economics |
 
-The study was conducted during a Research Assistantship exploring the boundary between LLM agent prompting strategies and hardware-level energy efficiency.
+The study was conducted during a Research Internship exploring the boundary between LLM agent prompting strategies and hardware-level energy efficiency.
 
 ---
 
