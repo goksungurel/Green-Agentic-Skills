@@ -207,7 +207,7 @@ This aligns with the Green AI literature finding that prompt complexity harms sm
 
 ## Methodological Findings
 
-Several prompt and harness bugs were discovered and fixed during development. These are documented in `CLAUDE.md`. The most impactful:
+Several prompt and harness bugs were discovered and fixed during development. The most impactful:
 
 - **Literal placeholder copy-paste** — illustrative examples in `mini.yaml` and skill files (e.g. `grep -rn "class Blueprint"`, `/path/to/file.py`) were copied verbatim by the model instead of being substituted with real values. Fixed by replacing all examples with `ALL_CAPS` placeholder names and explicit "do not type this literally" warnings.
 - **`sed -i` editing failures** — `\n` in sed replacement is a literal two-character string on macOS, producing invalid Python. All edits now use `python3 -c "open(...).replace(...)"`.

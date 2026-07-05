@@ -502,22 +502,11 @@ def load_code_changes(traj_dir: str, csv_rows: list[dict] | None = None) -> list
 
         key = (task_id, condition, run)
 
-        # Prefer CSV's code_changed (authoritative: set by git diff in experiment.py).
-        # Fall back to trajectory scan for runs not in CSV (e.g. validation runs).
-        if key in changed_lookup:
-            changed = changed_lookup[key]
-        else:
-            changed = False
-            for msg in data.get("messages", []):
-                for tc in msg.get("tool_calls", []):
-                    args_str = tc.get("function", {}).get("arguments", "")
-                    try:
-                        cmd = json.loads(args_str).get("command", "")
-                    except Exception:
-                        cmd = args_str
-                    if any(re.search(p, cmd) for p in _EDIT_PATTERNS):
-                        changed = True
-                        break
+        # Only process runs that exist in runs.csv — skip validation/old-batch runs.
+        if key not in changed_lookup:
+            continue
+
+        changed = changed_lookup[key]
 
         results.append({
             "task_id":   task_id,
