@@ -20,6 +20,7 @@ import csv
 import json
 import os
 import subprocess
+import sys
 import tempfile
 
 _HERE        = os.path.dirname(os.path.abspath(__file__))
@@ -97,7 +98,7 @@ def run_harness_single(prediction: dict) -> bool:
         pred_path = tf.name
 
     cmd = [
-        "python", "-m", "swebench.harness.run_evaluation",
+        sys.executable, "-m", "swebench.harness.run_evaluation",
         "--max_workers",  "1",
         "--instance_ids", instance,
         "--predictions_path", pred_path,

@@ -467,11 +467,18 @@ def load_code_changes(traj_dir: str, csv_rows: list[dict] | None = None) -> list
     or has no matching CSV row.
     """
     valid_lookup = {}
+    changed_lookup = {}   # code_changed from CSV is authoritative (set by git diff in experiment.py)
     if csv_rows:
         for r in csv_rows:
             key = (r["task_id"], r["condition"], r["run"])
             vs = r.get("valid_syntax", "n/a")
             valid_lookup[key] = None if vs == "n/a" else (vs == "True")
+            cc = r.get("code_changed")
+            # load_runs() already converts code_changed to bool; handle both forms
+            if isinstance(cc, bool):
+                changed_lookup[key] = cc
+            elif cc in ("True", "False"):
+                changed_lookup[key] = (cc == "True")
 
     results = []
     for fname in sorted(os.listdir(traj_dir)):
@@ -493,17 +500,24 @@ def load_code_changes(traj_dir: str, csv_rows: list[dict] | None = None) -> list
         info = data.get("info", {})
         submitted = info.get("exit_status", "") == "Submitted"
 
-        changed = False
-        for msg in data.get("messages", []):
-            for tc in msg.get("tool_calls", []):
-                args_str = tc.get("function", {}).get("arguments", "")
-                try:
-                    cmd = json.loads(args_str).get("command", "")
-                except Exception:
-                    cmd = args_str
-                if any(re.search(p, cmd) for p in _EDIT_PATTERNS):
-                    changed = True
-                    break
+        key = (task_id, condition, run)
+
+        # Prefer CSV's code_changed (authoritative: set by git diff in experiment.py).
+        # Fall back to trajectory scan for runs not in CSV (e.g. validation runs).
+        if key in changed_lookup:
+            changed = changed_lookup[key]
+        else:
+            changed = False
+            for msg in data.get("messages", []):
+                for tc in msg.get("tool_calls", []):
+                    args_str = tc.get("function", {}).get("arguments", "")
+                    try:
+                        cmd = json.loads(args_str).get("command", "")
+                    except Exception:
+                        cmd = args_str
+                    if any(re.search(p, cmd) for p in _EDIT_PATTERNS):
+                        changed = True
+                        break
 
         results.append({
             "task_id":   task_id,
@@ -511,7 +525,7 @@ def load_code_changes(traj_dir: str, csv_rows: list[dict] | None = None) -> list
             "run":       run,
             "changed":   changed,
             "submitted": submitted,
-            "valid":     valid_lookup.get((task_id, condition, run)),
+            "valid":     valid_lookup.get(key),
         })
     return results
 

@@ -28,10 +28,11 @@ from codecarbon import EmissionsTracker
 # ------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------
-N_RUNS      = 5
-MAX_STEPS   = 25  # was 15 — 63% of runs hit LimitsExceeded before submitting;
-                   # pilot with this value first, raise to ~35-40 if still high
-TIMEOUT     = 1200
+N_RUNS          = 5
+MAX_STEPS       = 25  # was 15 — 63% of runs hit LimitsExceeded before submitting;
+                    # pilot with this value first, raise to ~35-40 if still high
+TIMEOUT         = 1200
+USE_DEDUP_AGENT = False  # True = dedup_agent.DedupAgent; False = vanilla DefaultAgent
 RESULTS_CSV = "results/runs.csv"
 TRAJ_DIR    = "results/trajectories"
 PATCH_DIR   = "results/patches"
@@ -203,6 +204,9 @@ def run_once(task_id: str, problem_statement: str,
         if repo and commit:
             repo_dir = clone_repo(repo, commit)
 
+        agent_class_flag = (
+            "--agent-class dedup_agent.DedupAgent " if USE_DEDUP_AGENT else ""
+        )
         result = subprocess.run(
             [
                 "bash", "-c",
@@ -211,7 +215,7 @@ def run_once(task_id: str, problem_statement: str,
                 f'--task "$(cat {prompt_file})" '
                 f"--yolo "
                 f"--exit-immediately "
-                f"--agent-class dedup_agent.DedupAgent "
+                f"{agent_class_flag}"
                 f"-c {MINI_YAML} "
                 f"-c agent.step_limit={MAX_STEPS} "
                 f"-o {traj_file}"
