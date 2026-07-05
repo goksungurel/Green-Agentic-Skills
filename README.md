@@ -8,6 +8,19 @@ Structured guidance reduces unproductive agent turns → fewer LLM calls → les
 
 ---
 
+## Research Context
+
+This project was developed as part of a research initiative on **Green Agentic AI** and sustainable software engineering in collaboration with **Wageningen University & Research (WUR)**.
+
+| | |
+|---|---|
+| **Supervisor** | Dr. June Sallou — Wageningen University & Research |
+| **Author** | Göksun Gürel — Izmir University of Economics |
+
+The study was conducted during a Research Assistantship exploring the boundary between LLM agent prompting strategies and hardware-level energy efficiency.
+
+---
+
 ## Overview
 
 GreenSkill is an empirical study that runs a fully local AI coding agent on [SWE-bench Lite](https://www.swebench.com/lite.html) tasks under two conditions and measures energy consumption. Each task receives either no skill (baseline) or a task-specific skill file matched to the bug type. By comparing energy, step count, and success rate across conditions, we test whether skill injection is a viable Green AI strategy.
