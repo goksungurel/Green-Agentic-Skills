@@ -357,7 +357,7 @@ def plot_steps(stats: dict, out_dir: str):
                 f"{val:.1f}", ha="center", va="bottom", fontsize=9)
 
     ax.set_ylabel("Average LLM Calls (steps)")
-    ax.set_title("Agent Steps per Condition\n(submitted runs only)")
+    ax.set_title("Agent Steps per Condition\n(all measured runs, incl. failures)")
     ax.set_ylim(0, max(values) * 1.2)
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
