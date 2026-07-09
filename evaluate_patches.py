@@ -42,7 +42,29 @@ def parse_patch_name(fname: str):
     return task_id, condition, run
 
 
-def build_predictions(patch_files: list[str]) -> list[dict]:
+def load_valid_syntax(csv_path: str = None) -> dict:
+    """Returns dict keyed by (task_id, condition, run) -> valid_syntax.
+
+    Value is True/False, or None if not applicable (runs.csv has "n/a",
+    meaning no code was changed at all — not the same as a broken change).
+    Used to skip patches that experiment.py's py_compile check already
+    proved are syntactically broken, so we don't burn Docker time on a
+    guaranteed-negative harness run.
+    """
+    path = csv_path or os.path.join(_HERE, "results", "runs.csv")
+    lookup = {}
+    if not os.path.exists(path):
+        return lookup
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            key = (row["task_id"], row["condition"], row["run"])
+            vs = row.get("valid_syntax", "n/a")
+            lookup[key] = None if vs == "n/a" else (vs == "True")
+    return lookup
+
+
+def build_predictions(patch_files: list[str], valid_syntax: dict = None) -> list[dict]:
+    valid_syntax = valid_syntax or {}
     predictions = []
     for fpath in patch_files:
         fname = os.path.basename(fpath)
@@ -51,6 +73,9 @@ def build_predictions(patch_files: list[str]) -> list[dict]:
             print(f"  [SKIP] Cannot parse filename: {fname}")
             continue
         task_id, condition, run = parsed
+        if valid_syntax.get((task_id, condition, run)) is False:
+            print(f"  [SKIP] Invalid syntax (py_compile failed in experiment.py), not sent to harness: {fname}")
+            continue
         with open(fpath) as f:
             patch_content = f.read()
         if not patch_content.strip():
@@ -107,11 +132,21 @@ def run_harness_single(prediction: dict) -> bool:
 
     timed_out = False
     try:
-        subprocess.run(cmd, capture_output=False, text=True, timeout=PATCH_TIMEOUT)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-
-    os.unlink(pred_path)
+        try:
+            subprocess.run(cmd, capture_output=False, text=True, timeout=PATCH_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+    finally:
+        # Crash-safe: pred_path must never be left behind, regardless of
+        # whether subprocess.run times out, raises something else, or
+        # succeeds. Previously this unlink sat unconditionally *after* the
+        # try/except, so any exception other than TimeoutExpired (e.g. the
+        # harness module not being importable) would skip cleanup and leak
+        # a tmp*.json file into the project root.
+        try:
+            os.unlink(pred_path)
+        except OSError:
+            pass
 
     if timed_out:
         print(f"    [TIMEOUT after {PATCH_TIMEOUT}s]")
@@ -131,12 +166,17 @@ def run_harness_single(prediction: dict) -> bool:
             print(f"    [WARN] No report found for run_id={run_id}")
             return False
 
-    with open(report_path) as f:
-        report = json.load(f)
-
-    os.unlink(report_path)
-
-    return instance in set(report.get("resolved_ids", []))
+    try:
+        with open(report_path) as f:
+            report = json.load(f)
+        return instance in set(report.get("resolved_ids", []))
+    finally:
+        # Crash-safe: report file must be removed even if json.load() fails
+        # on a corrupted/partial report.
+        try:
+            os.unlink(report_path)
+        except OSError:
+            pass
 
 
 def load_existing_accuracy() -> set:
@@ -198,7 +238,8 @@ def main():
         print("All patches already evaluated.")
         return
 
-    predictions = build_predictions(pending)
+    valid_syntax = load_valid_syntax()
+    predictions = build_predictions(pending, valid_syntax)
     if not predictions:
         print("No valid predictions to evaluate.")
         return

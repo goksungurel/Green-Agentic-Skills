@@ -44,6 +44,10 @@ greenskill_*.json
 gold.validate-gold.json
 *.greenskill-eval.json
 
+# Orphaned tempfile.NamedTemporaryFile() artifacts from evaluate_patches.py
+# (only occur if a crash slips past the try/finally cleanup)
+tmp*.json
+
 # Project proposal PDF (local only)
 *.pdf
 
