@@ -32,6 +32,16 @@ BATCH = [
     {"id": "matplotlib__matplotlib-22835", "type": "exception_debug"},
     {"id": "psf__requests-2148",        "type": "exception_debug"},
     {"id": "psf__requests-2674",        "type": "exception_debug"},
+    # Reassigned from logic_debug: problem statement centers on an explicit
+    # traceback (TypeError: ufunc 'isnan' ...), not a silent wrong-result bug.
+    {"id": "mwaskom__seaborn-2848",     "type": "exception_debug"},
+    # Reassigned from logic_debug: problem statement centers on an explicit
+    # KeyError traceback, not a silent wrong-result bug.
+    {"id": "mwaskom__seaborn-3407",     "type": "exception_debug"},
+    # Reassigned from feature: this is a bug report (crash on lowercase QDP
+    # commands, ValueError traceback shown), not a feature request — no
+    # "add"/"would be nice"/"please add" framing anywhere in the issue.
+    {"id": "astropy__astropy-14365",    "type": "exception_debug"},
     # --- logic_debug: silent / wrong-result bugs, no exception ---
     {"id": "django__django-11001",      "type": "logic_debug"},
     {"id": "astropy__astropy-6938",     "type": "logic_debug"},
@@ -43,12 +53,9 @@ BATCH = [
     {"id": "psf__requests-1963",        "type": "logic_debug"},
     {"id": "psf__requests-2317",        "type": "logic_debug"},
     {"id": "psf__requests-3362",        "type": "logic_debug"},
-    {"id": "mwaskom__seaborn-2848",     "type": "logic_debug"},
-    {"id": "mwaskom__seaborn-3407",     "type": "logic_debug"},
     {"id": "pydata__xarray-4094",       "type": "logic_debug"},
     # --- feature: add parameter / extend API ---
     {"id": "pallets__flask-4992",       "type": "feature"},
-    {"id": "astropy__astropy-14365",    "type": "feature"},
     {"id": "django__django-10924",      "type": "feature"},
     {"id": "django__django-10914",      "type": "feature"},
     {"id": "astropy__astropy-14182",    "type": "feature"},

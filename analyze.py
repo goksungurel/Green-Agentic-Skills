@@ -55,6 +55,16 @@ TASK_TYPE = {
     "matplotlib__matplotlib-22835":     "exception_debug",
     "psf__requests-2148":               "exception_debug",
     "psf__requests-2674":               "exception_debug",
+    # Reassigned from logic_debug: problem statement centers on an explicit
+    # traceback (TypeError: ufunc 'isnan' ...), not a silent wrong-result bug.
+    "mwaskom__seaborn-2848":            "exception_debug",
+    # Reassigned from logic_debug: problem statement centers on an explicit
+    # KeyError traceback, not a silent wrong-result bug.
+    "mwaskom__seaborn-3407":            "exception_debug",
+    # Reassigned from feature: this is a bug report (crash on lowercase QDP
+    # commands, ValueError traceback shown), not a feature request — no
+    # "add"/"would be nice"/"please add" framing anywhere in the issue.
+    "astropy__astropy-14365":           "exception_debug",
     # --- logic_debug: wrong result / silent bugs, no exception ---
     "django__django-11001":             "logic_debug",
     "astropy__astropy-6938":            "logic_debug",
@@ -66,12 +76,9 @@ TASK_TYPE = {
     "psf__requests-1963":               "logic_debug",
     "psf__requests-2317":               "logic_debug",
     "psf__requests-3362":               "logic_debug",
-    "mwaskom__seaborn-2848":            "logic_debug",
-    "mwaskom__seaborn-3407":            "logic_debug",
     "pydata__xarray-4094":              "logic_debug",
     # --- feature ---
     "pallets__flask-4992":              "feature",
-    "astropy__astropy-14365":           "feature",
     "django__django-10924":             "feature",
     "django__django-10914":             "feature",
     "astropy__astropy-14182":           "feature",

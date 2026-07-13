@@ -7,7 +7,10 @@ NEVER grep for the exception message text (e.g. `TypeError: ...`) — it will no
 NEVER use file paths from the traceback (e.g. `/Users/reporter/opt/anaconda3/.../widgets.py`) — those are the reporter's machine paths, they do NOT exist in the local repo. Take only the filename (e.g. `widgets.py`) and find it with grep:
 `grep -rn "def REAL_FUNCTION_NAME" . --include="*.py" | head -20`
 Search for the function that raises, not the caller:
-- `TypeError: unsupported operand` → grep for the **function name** on the line that raises, e.g. `grep -rn "def set_val"` — not the text `"TypeError"`
+- `TypeError: unsupported operand` → grep for the **function name** on the line that raises, e.g. `grep -rn "def REAL_FUNCTION_NAME"` — not the text `"TypeError"`
+  (REAL_FUNCTION_NAME is NOT literal text — it is a placeholder. Replace it with
+  the actual function name found on the traceback line that raises. Never type
+  the literal words "REAL_FUNCTION_NAME" or "set_val" into a command.)
 - `AttributeError: 'NoneType'` → grep for the **attribute name** being accessed
 - `LinAlgError` → grep for the **numpy/scipy call** site by function name
 
