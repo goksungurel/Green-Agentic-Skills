@@ -1,0 +1,256 @@
+diff --git a/xarray/core/dataarray.py b/xarray/core/dataarray.py
+index b0df8749..42d3695b 100644
+--- a/xarray/core/dataarray.py
++++ b/xarray/core/dataarray.py
+@@ -856,7 +856,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         dask.persist
+         """
+         ds = self._to_temp_dataset().persist(**kwargs)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def copy(self, deep: bool = True, data: Any = None) -> "DataArray":
+         """Returns a copy of this array.
+@@ -1000,7 +1000,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         ds = self._to_temp_dataset().chunk(
+             chunks, name_prefix=name_prefix, token=token, lock=lock
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def isel(
+         self,
+@@ -1045,7 +1045,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             ds = self._to_temp_dataset()._isel_fancy(
+                 indexers, drop=drop, missing_dims=missing_dims
+             )
+-            return self._from_temp_dataset(ds)
++            return ds.to_unstacked_dataset()
+ 
+         # Much faster algorithm for when all indexers are ints, slices, one-dimensional
+         # lists, or zero or one-dimensional np.ndarray's
+@@ -1153,7 +1153,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             tolerance=tolerance,
+             **indexers_kwargs,
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def head(
+         self,
+@@ -1170,7 +1170,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.thin
+         """
+         ds = self._to_temp_dataset().head(indexers, **indexers_kwargs)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def tail(
+         self,
+@@ -1187,7 +1187,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.thin
+         """
+         ds = self._to_temp_dataset().tail(indexers, **indexers_kwargs)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def thin(
+         self,
+@@ -1204,7 +1204,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.tail
+         """
+         ds = self._to_temp_dataset().thin(indexers, **indexers_kwargs)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def broadcast_like(
+         self, other: Union["DataArray", Dataset], exclude: Iterable[Hashable] = None
+@@ -1392,7 +1392,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             copy=copy,
+             fill_value=fill_value,
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def interp(
+         self,
+@@ -1459,7 +1459,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             assume_sorted=assume_sorted,
+             **coords_kwargs,
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def interp_like(
+         self,
+@@ -1514,7 +1514,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         ds = self._to_temp_dataset().interp_like(
+             other, method=method, kwargs=kwargs, assume_sorted=assume_sorted
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def rename(
+         self,
+@@ -1604,7 +1604,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         Dataset.swap_dims
+         """
+         ds = self._to_temp_dataset().swap_dims(dims_dict)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def expand_dims(
+         self,
+@@ -1657,7 +1657,7 @@ class DataArray(AbstractArray, DataWithCoords):
+ 
+         dim = either_dict_or_kwargs(dim, dim_kwargs, "expand_dims")
+         ds = self._to_temp_dataset().expand_dims(dim, axis)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def set_index(
+         self,
+@@ -1717,7 +1717,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         ds = self._to_temp_dataset().set_index(
+             indexes, append=append, inplace=inplace, **indexes_kwargs
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def reset_index(
+         self,
+@@ -1841,7 +1841,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.unstack
+         """
+         ds = self._to_temp_dataset().stack(dimensions, **dimensions_kwargs)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def unstack(
+         self,
+@@ -1896,7 +1896,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.stack
+         """
+         ds = self._to_temp_dataset().unstack(dim, fill_value, sparse)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def to_unstacked_dataset(self, dim, level=0):
+         """Unstack DataArray expanding to Dataset along a given level of a
+@@ -2029,7 +2029,7 @@ class DataArray(AbstractArray, DataWithCoords):
+ 
+         """
+         ds = self._to_temp_dataset().drop_vars(names, errors=errors)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def drop(
+         self,
+@@ -2049,7 +2049,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.drop_sel
+         """
+         ds = self._to_temp_dataset().drop(labels, dim, errors=errors)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def drop_sel(
+         self,
+@@ -2080,7 +2080,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             labels = either_dict_or_kwargs(labels, labels_kwargs, "drop")
+ 
+         ds = self._to_temp_dataset().drop_sel(labels, errors=errors)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def dropna(
+         self, dim: Hashable, how: str = "any", thresh: int = None
+@@ -2104,7 +2104,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray
+         """
+         ds = self._to_temp_dataset().dropna(dim, how=how, thresh=thresh)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def fillna(self, value: Any) -> "DataArray":
+         """Fill missing values in this object.
+@@ -2805,7 +2805,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         DataArray.differentiate
+         """
+         ds = self._to_temp_dataset().diff(n=n, dim=dim, label=label)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def shift(
+         self,
+@@ -2904,7 +2904,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         ds = self._to_temp_dataset().roll(
+             shifts=shifts, roll_coords=roll_coords, **shifts_kwargs
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     @property
+     def real(self) -> "DataArray":
+@@ -3023,7 +3023,7 @@ class DataArray(AbstractArray, DataWithCoords):
+           * time     (time) datetime64[ns] 2000-01-03 2000-01-04 2000-01-05 ...
+         """
+         ds = self._to_temp_dataset().sortby(variables, ascending=ascending)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def quantile(
+         self,
+@@ -3116,7 +3116,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             interpolation=interpolation,
+             skipna=skipna,
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def rank(
+         self, dim: Hashable, pct: bool = False, keep_attrs: bool = None
+@@ -3158,7 +3158,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         """
+ 
+         ds = self._to_temp_dataset().rank(dim, pct=pct, keep_attrs=keep_attrs)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def differentiate(
+         self, coord: Hashable, edge_order: int = 1, datetime_unit: str = None
+@@ -3217,7 +3217,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         Dimensions without coordinates: y
+         """
+         ds = self._to_temp_dataset().differentiate(coord, edge_order, datetime_unit)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def integrate(
+         self, dim: Union[Hashable, Sequence[Hashable]], datetime_unit: str = None
+@@ -3269,7 +3269,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         Dimensions without coordinates: y
+         """
+         ds = self._to_temp_dataset().integrate(dim, datetime_unit)
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def unify_chunks(self) -> "DataArray":
+         """ Unify chunk size along all chunked dimensions of this DataArray.
+@@ -3285,7 +3285,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         dask.array.core.unify_chunks
+         """
+         ds = self._to_temp_dataset().unify_chunks()
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def map_blocks(
+         self,
+@@ -3623,7 +3623,7 @@ class DataArray(AbstractArray, DataWithCoords):
+             reflect_type=reflect_type,
+             **pad_width_kwargs,
+         )
+-        return self._from_temp_dataset(ds)
++        return ds.to_unstacked_dataset()
+ 
+     def idxmin(
+         self,

@@ -1,0 +1,22 @@
+diff --git a/tests/model_fields/models.py b/tests/model_fields/models.py
+index cbf3ec26ea..637f9351bd 100644
+--- a/tests/model_fields/models.py
++++ b/tests/model_fields/models.py
+@@ -171,7 +171,7 @@ class VerboseNameField(models.Model):
+     field6 = models.DecimalField("verbose field6", max_digits=6, decimal_places=1)
+     field7 = models.EmailField("verbose field7")
+     field8 = models.FileField("verbose field8", upload_to="unused")
+-    field9 = models.FilePathField("verbose field9")
++    field9 = models.FilePathField(path=os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'))("verbose field9")
+     field10 = models.FloatField("verbose field10")
+     # Don't want to depend on Pillow in this test
+     # field_image = models.ImageField("verbose field")
+@@ -329,7 +329,7 @@ class AllFieldsModel(models.Model):
+     decimal = models.DecimalField(decimal_places=2, max_digits=2)
+     duration = models.DurationField()
+     email = models.EmailField()
+-    file_path = models.FilePathField()
++    file_path = models.FilePathField(path=os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'))()
+     floatf = models.FloatField()
+     integer = models.IntegerField()
+     generic_ip = models.GenericIPAddressField()

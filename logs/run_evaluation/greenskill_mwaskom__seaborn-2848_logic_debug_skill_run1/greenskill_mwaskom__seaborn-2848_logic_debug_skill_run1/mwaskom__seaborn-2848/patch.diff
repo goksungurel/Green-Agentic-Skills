@@ -1,0 +1,49 @@
+diff --git a/seaborn/axisgrid.py b/seaborn/axisgrid.py
+index 8526f44b..dff562d5 100644
+--- a/seaborn/axisgrid.py
++++ b/seaborn/axisgrid.py
+@@ -313,7 +313,7 @@ class FacetGrid(Grid):
+         self, data, *,
+         row=None, col=None, hue=None, col_wrap=None,
+         sharex=True, sharey=True, height=3, aspect=1, palette=None,
+-        row_order=None, col_order=None, hue_order=None, hue_kws=None,
++        row_order=None, col_order=None, hue_order=hue_order if hue_order is not None else list(data[hue].unique()), hue_kws=None,
+         dropna=False, legend_out=True, despine=True,
+         margin_titles=False, xlim=None, ylim=None, subplot_kws=None,
+         gridspec_kws=None, size=None,
+@@ -1137,7 +1137,7 @@ class PairGrid(Grid):
+     """
+     def __init__(
+         self, data, *, hue=None, vars=None, x_vars=None, y_vars=None,
+-        hue_order=None, palette=None, hue_kws=None, corner=False, diag_sharey=True,
++        hue_order=hue_order if hue_order is not None else list(data[hue].unique()), palette=None, hue_kws=None, corner=False, diag_sharey=True,
+         height=2.5, aspect=1, layout_pad=.5, despine=True, dropna=False, size=None
+     ):
+         """Initialize the plot figure and PairGrid object.
+@@ -1648,7 +1648,7 @@ class JointGrid(_BaseGrid):
+         x=None, y=None,
+         height=6, ratio=5, space=.2,
+         dropna=False, xlim=None, ylim=None, size=None, marginal_ticks=False,
+-        hue=None, palette=None, hue_order=None, hue_norm=None,
++        hue=None, palette=None, hue_order=hue_order if hue_order is not None else list(data[hue].unique()), hue_norm=None,
+     ):
+         # Handle deprecations
+         if size is not None:
+@@ -1975,7 +1975,7 @@ Examples
+ 
+ def pairplot(
+     data, *,
+-    hue=None, hue_order=None, palette=None,
++    hue=None, hue_order=hue_order if hue_order is not None else list(data[hue].unique()), palette=None,
+     vars=None, x_vars=None, y_vars=None,
+     kind="scatter", diag_kind="auto", markers=None,
+     height=2.5, aspect=1, corner=False, dropna=False,
+@@ -2150,7 +2150,7 @@ def pairplot(
+ def jointplot(
+     data=None, *, x=None, y=None, hue=None, kind="scatter",
+     height=6, ratio=5, space=.2, dropna=False, xlim=None, ylim=None,
+-    color=None, palette=None, hue_order=None, hue_norm=None, marginal_ticks=False,
++    color=None, palette=None, hue_order=hue_order if hue_order is not None else list(data[hue].unique()), hue_norm=None, marginal_ticks=False,
+     joint_kws=None, marginal_kws=None,
+     **kwargs
+ ):

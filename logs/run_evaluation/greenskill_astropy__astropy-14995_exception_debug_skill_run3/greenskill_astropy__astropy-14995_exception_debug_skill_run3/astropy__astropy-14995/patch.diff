@@ -1,0 +1,22 @@
+diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py
+index 4153dfccb2..c0ffa55ee6 100644
+--- a/astropy/nddata/mixins/ndarithmetic.py
++++ b/astropy/nddata/mixins/ndarithmetic.py
+@@ -691,7 +691,7 @@ class NDArithmeticMixin:
+             # True means it was called on the instance, so self_or_cls is
+             # a reference to self
+             cls = self_or_cls.__class__
+-            if operand2 is None:
++            if operand2 is None or operand2.mask is None:
+                 # Only one operand was given. Set operand2 to operand and
+                 # operand to self so that we call the appropriate method of the
+                 # operand.
+@@ -708,7 +708,7 @@ class NDArithmeticMixin:
+             cls = self_or_cls
+ 
+             # It was called on the class so we expect two operands!
+-            if operand2 is None:
++            if operand2 is None or operand2.mask is None:
+                 raise TypeError(
+                     "operand2 must be given when the method isn't "
+                     "called on an instance."

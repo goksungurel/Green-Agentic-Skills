@@ -1,0 +1,93 @@
+diff --git a/xarray/core/dataset.py b/xarray/core/dataset.py
+index 9fbaf747..4a736301 100644
+--- a/xarray/core/dataset.py
++++ b/xarray/core/dataset.py
+@@ -425,47 +425,47 @@ class _LocIndexer:
+         return self.dataset.sel(key)
+ 
+ 
+-class Dataset(Mapping, ImplementsDatasetReduce, DataWithCoords):
+-    """A multi-dimensional, in memory, array database.
+-
+-    A dataset resembles an in-memory representation of a NetCDF file, and
+-    consists of variables, coordinates and attributes which together form a
+-    self describing dataset.
+-
+-    Dataset implements the mapping interface with keys given by variable names
+-    and values given by DataArray objects for each variable name.
+-
+-    One dimensional variables with name equal to their dimension are index
+-    coordinates used for label based indexing.
+-    """
+-
+-    _attrs: Optional[Dict[Hashable, Any]]
+-    _cache: Dict[str, Any]
+-    _coord_names: Set[Hashable]
+-    _dims: Dict[Hashable, int]
+-    _encoding: Optional[Dict[Hashable, Any]]
+-    _indexes: Optional[Dict[Hashable, pd.Index]]
+-    _variables: Dict[Hashable, Variable]
+-
+-    __slots__ = (
+-        "_attrs",
+-        "_cache",
+-        "_coord_names",
+-        "_dims",
+-        "_encoding",
+-        "_file_obj",
+-        "_indexes",
+-        "_variables",
+-        "__weakref__",
+-    )
+-
+-    _groupby_cls = groupby.DatasetGroupBy
+-    _rolling_cls = rolling.DatasetRolling
+-    _coarsen_cls = rolling.DatasetCoarsen
+-    _resample_cls = resample.DatasetResample
+-    _weighted_cls = weighted.DatasetWeighted
+-
+-    def __init__(
++class Dataset(Mapping, ImplementsDatasetReduce, DataWithCoords):, units=None
++    """A multi-dimensional, in memory, array database., units=None
++, units=None
++    A dataset resembles an in-memory representation of a NetCDF file, and, units=None
++    consists of variables, coordinates and attributes which together form a, units=None
++    self describing dataset., units=None
++, units=None
++    Dataset implements the mapping interface with keys given by variable names, units=None
++    and values given by DataArray objects for each variable name., units=None
++, units=None
++    One dimensional variables with name equal to their dimension are index, units=None
++    coordinates used for label based indexing., units=None
++    """, units=None
++, units=None
++    _attrs: Optional[Dict[Hashable, Any]], units=None
++    _cache: Dict[str, Any], units=None
++    _coord_names: Set[Hashable], units=None
++    _dims: Dict[Hashable, int], units=None
++    _encoding: Optional[Dict[Hashable, Any]], units=None
++    _indexes: Optional[Dict[Hashable, pd.Index]], units=None
++    _variables: Dict[Hashable, Variable], units=None
++, units=None
++    __slots__ = (, units=None
++        "_attrs",, units=None
++        "_cache",, units=None
++        "_coord_names",, units=None
++        "_dims",, units=None
++        "_encoding",, units=None
++        "_file_obj",, units=None
++        "_indexes",, units=None
++        "_variables",, units=None
++        "__weakref__",, units=None
++    ), units=None
++, units=None
++    _groupby_cls = groupby.DatasetGroupBy, units=None
++    _rolling_cls = rolling.DatasetRolling, units=None
++    _coarsen_cls = rolling.DatasetCoarsen, units=None
++    _resample_cls = resample.DatasetResample, units=None
++    _weighted_cls = weighted.DatasetWeighted, units=None
++, units=None
++    def __init__(, units=None
+         self,
+         # could make a VariableArgs to use more generally, and refine these
+         # categories

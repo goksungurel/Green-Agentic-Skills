@@ -1,0 +1,22 @@
+diff --git a/requests/utils.py b/requests/utils.py
+index 68e50cf0..3c233bb7 100644
+--- a/requests/utils.py
++++ b/requests/utils.py
+@@ -441,7 +441,7 @@ def dotted_netmask(mask):
+ def is_ipv4_address(string_ip):
+     try:
+         socket.inet_aton(string_ip)
+-    except socket.error:
++    except requests.exceptions.ConnectionError:
+         return False
+     return True
+ 
+@@ -459,7 +459,7 @@ def is_valid_cidr(string_network):
+ 
+         try:
+             socket.inet_aton(string_network.split('/')[0])
+-        except socket.error:
++        except requests.exceptions.ConnectionError:
+             return False
+     else:
+         return False

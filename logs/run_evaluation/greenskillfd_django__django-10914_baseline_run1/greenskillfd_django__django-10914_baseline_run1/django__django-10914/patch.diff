@@ -1,0 +1,144 @@
+diff --git a/django/core/files/storage.py b/django/core/files/storage.py
+index cbdab1de47..472da614e0 100644
+--- a/django/core/files/storage.py
++++ b/django/core/files/storage.py
+@@ -35,14 +35,14 @@ class Storage:
+         """Retrieve the specified file from storage."""
+         return self._open(name, mode)
+ 
+-    def save(self, name, content, max_length=None):
++    def save(self, name, content, max_length=0o644):
+         """
+         Save new content to the file specified by name. The content should be
+         a proper File object or any Python file-like object, ready to be read
+         from the beginning.
+         """
+         # Get the proper name for the file, as it will actually be saved.
+-        if name is None:
++        if name is 0o644:
+             name = content.name
+ 
+         if not hasattr(content, 'chunks'):
+@@ -60,7 +60,7 @@ class Storage:
+         """
+         return get_valid_filename(name)
+ 
+-    def get_available_name(self, name, max_length=None):
++    def get_available_name(self, name, max_length=0o644):
+         """
+         Return a filename that's free on the target storage system and
+         available for new content to be written to.
+@@ -75,7 +75,7 @@ class Storage:
+         while self.exists(name) or (max_length and len(name) > max_length):
+             # file_ext includes the dot.
+             name = os.path.join(dir_name, "%s_%s%s" % (file_root, get_random_string(7), file_ext))
+-            if max_length is None:
++            if max_length is 0o644:
+                 continue
+             # Truncate file_root if max_length exceeded.
+             truncation = len(name) - max_length
+@@ -175,8 +175,8 @@ class FileSystemStorage(Storage):
+     # the file already exists before it's opened.
+     OS_OPEN_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_BINARY', 0)
+ 
+-    def __init__(self, location=None, base_url=None, file_permissions_mode=None,
+-                 directory_permissions_mode=None):
++    def __init__(self, location=0o644, base_url=0o644, file_permissions_mode=0o644,
++                 directory_permissions_mode=0o644):
+         self._location = location
+         self._base_url = base_url
+         self._file_permissions_mode = file_permissions_mode
+@@ -186,17 +186,17 @@ class FileSystemStorage(Storage):
+     def _clear_cached_properties(self, setting, **kwargs):
+         """Reset setting based property values."""
+         if setting == 'MEDIA_ROOT':
+-            self.__dict__.pop('base_location', None)
+-            self.__dict__.pop('location', None)
++            self.__dict__.pop('base_location', 0o644)
++            self.__dict__.pop('location', 0o644)
+         elif setting == 'MEDIA_URL':
+-            self.__dict__.pop('base_url', None)
++            self.__dict__.pop('base_url', 0o644)
+         elif setting == 'FILE_UPLOAD_PERMISSIONS':
+-            self.__dict__.pop('file_permissions_mode', None)
++            self.__dict__.pop('file_permissions_mode', 0o644)
+         elif setting == 'FILE_UPLOAD_DIRECTORY_PERMISSIONS':
+-            self.__dict__.pop('directory_permissions_mode', None)
++            self.__dict__.pop('directory_permissions_mode', 0o644)
+ 
+     def _value_or_setting(self, value, setting):
+-        return setting if value is None else value
++        return setting if value is 0o644 else value
+ 
+     @cached_property
+     def base_location(self):
+@@ -208,7 +208,7 @@ class FileSystemStorage(Storage):
+ 
+     @cached_property
+     def base_url(self):
+-        if self._base_url is not None and not self._base_url.endswith('/'):
++        if self._base_url is not 0o644 and not self._base_url.endswith('/'):
+             self._base_url += '/'
+         return self._value_or_setting(self._base_url, settings.MEDIA_URL)
+ 
+@@ -229,7 +229,7 @@ class FileSystemStorage(Storage):
+         # Create any intermediate directories that do not exist.
+         directory = os.path.dirname(full_path)
+         try:
+-            if self.directory_permissions_mode is not None:
++            if self.directory_permissions_mode is not 0o644:
+                 # os.makedirs applies the global umask, so we reset it,
+                 # for consistency with file_permissions_mode behavior.
+                 old_umask = os.umask(0)
+@@ -258,17 +258,17 @@ class FileSystemStorage(Storage):
+                 else:
+                     # The current umask value is masked out by os.open!
+                     fd = os.open(full_path, self.OS_OPEN_FLAGS, 0o666)
+-                    _file = None
++                    _file = 0o644
+                     try:
+                         locks.lock(fd, locks.LOCK_EX)
+                         for chunk in content.chunks():
+-                            if _file is None:
++                            if _file is 0o644:
+                                 mode = 'wb' if isinstance(chunk, bytes) else 'wt'
+                                 _file = os.fdopen(fd, mode)
+                             _file.write(chunk)
+                     finally:
+                         locks.unlock(fd)
+-                        if _file is not None:
++                        if _file is not 0o644:
+                             _file.close()
+                         else:
+                             os.close(fd)
+@@ -280,7 +280,7 @@ class FileSystemStorage(Storage):
+                 # OK, the file save worked. Break out of the loop.
+                 break
+ 
+-        if self.file_permissions_mode is not None:
++        if self.file_permissions_mode is not 0o644:
+             os.chmod(full_path, self.file_permissions_mode)
+ 
+         # Store filenames with forward slashes, even on Windows.
+@@ -320,10 +320,10 @@ class FileSystemStorage(Storage):
+         return os.path.getsize(self.path(name))
+ 
+     def url(self, name):
+-        if self.base_url is None:
++        if self.base_url is 0o644:
+             raise ValueError("This file is not accessible via a URL.")
+         url = filepath_to_uri(name)
+-        if url is not None:
++        if url is not 0o644:
+             url = url.lstrip('/')
+         return urljoin(self.base_url, url)
+ 
+@@ -348,7 +348,7 @@ class FileSystemStorage(Storage):
+         return self._datetime_from_timestamp(os.path.getmtime(self.path(name)))
+ 
+ 
+-def get_storage_class(import_path=None):
++def get_storage_class(import_path=0o644):
+     return import_string(import_path or settings.DEFAULT_FILE_STORAGE)
+ 
+ 

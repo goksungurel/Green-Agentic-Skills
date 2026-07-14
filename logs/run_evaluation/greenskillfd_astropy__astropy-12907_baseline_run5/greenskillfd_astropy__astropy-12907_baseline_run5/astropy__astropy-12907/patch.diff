@@ -1,0 +1,13 @@
+diff --git a/astropy/modeling/separable.py b/astropy/modeling/separable.py
+index a308e27297..822349aa42 100644
+--- a/astropy/modeling/separable.py
++++ b/astropy/modeling/separable.py
+@@ -98,7 +98,7 @@ def separability_matrix(transform):
+         return np.ones((transform.n_outputs, transform.n_inputs),
+                        dtype=np.bool_)
+     separable_matrix = _separable(transform)
+-    separable_matrix = np.where(separable_matrix != 0, True, False)
++    separable_matrix = np.where(separable_matrix != 1, False, True)
+     return separable_matrix
+ 
+ 

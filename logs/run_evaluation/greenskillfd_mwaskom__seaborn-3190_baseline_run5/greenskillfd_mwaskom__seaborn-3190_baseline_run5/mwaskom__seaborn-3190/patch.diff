@@ -1,0 +1,26 @@
+diff --git a/seaborn/matrix.py b/seaborn/matrix.py
+index 76f22b89..025512f7 100644
+--- a/seaborn/matrix.py
++++ b/seaborn/matrix.py
+@@ -721,12 +721,12 @@ class ClusterGrid(Grid):
+ 
+         try:
+             row_dendrogram_ratio, col_dendrogram_ratio = dendrogram_ratio
+-        except TypeError:
++        except (TypeError, ValueError):
+             row_dendrogram_ratio = col_dendrogram_ratio = dendrogram_ratio
+ 
+         try:
+             row_colors_ratio, col_colors_ratio = colors_ratio
+-        except TypeError:
++        except (TypeError, ValueError):
+             row_colors_ratio = col_colors_ratio = colors_ratio
+ 
+         width_ratios = self.dim_ratios(self.row_colors,
+@@ -1260,3 +1260,6 @@ def clustermap(
+                         row_cluster=row_cluster, col_cluster=col_cluster,
+                         row_linkage=row_linkage, col_linkage=col_linkage,
+                         tree_kws=tree_kws, **kwargs)
++
++if isinstance(dendrogram_ratio, bool) or isinstance(colors_ratio, bool):
++            dendrogram_ratio = colors_ratio = None

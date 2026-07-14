@@ -1,0 +1,67 @@
+diff --git a/astropy/io/ascii/qdp.py b/astropy/io/ascii/qdp.py
+index 83a4f004aa..24dd0482a0 100644
+--- a/astropy/io/ascii/qdp.py
++++ b/astropy/io/ascii/qdp.py
+@@ -32,7 +32,7 @@ def _line_type(line, delimiter=None):
+ 
+     Examples
+     --------
+-    >>> _line_type("READ SERR 3")
++    >>> _line_type("READ serr 3")
+     'command'
+     >>> _line_type(" \\n    !some gibberish")
+     'comment'
+@@ -147,7 +147,7 @@ def _get_lines_from_file(qdp_file):
+ 
+ 
+ def _interpret_err_lines(err_specs, ncols, names=None):
+-    """Give list of column names from the READ SERR and TERR commands.
++    """Give list of column names from the READ serr and TERR commands.
+ 
+     Parameters
+     ----------
+@@ -457,7 +457,7 @@ def _write_table_qdp(table, filename=None, err_specs=None):
+         terr_cols = err_specs.pop("terr", [])
+     if serr_cols != []:
+         col_string = " ".join([str(val) for val in serr_cols])
+-        print(f"READ SERR {col_string}", file=fobj)
++        print(f"READ serr {col_string}", file=fobj)
+     if terr_cols != []:
+         col_string = " ".join([str(val) for val in terr_cols])
+         print(f"READ TERR {col_string}", file=fobj)
+@@ -528,7 +528,7 @@ class QDP(basic.Basic):
+         ! Initial comment line 1
+         ! Initial comment line 2
+         READ TERR 1
+-        READ SERR 3
++        READ serr 3
+         ! Table 0 comment
+         !a a(pos) a(neg) b be c d
+         53000.5   0.25  -0.5   1  1.5  3.5 2
+@@ -548,7 +548,7 @@ class QDP(basic.Basic):
+     above has commands::
+ 
+         READ TERR 1
+-        READ SERR 3
++        READ serr 3
+ 
+     which mean that after data column 1 there will be two error columns
+     containing its positive and engative error bars, then data column 2 without
+@@ -569,7 +569,7 @@ class QDP(basic.Basic):
+     passing a dictionary ``{'serr': [3], 'terr': [1, 2]}``, meaning that data
+     columns 1 and two will have two additional columns each with their positive
+     and negative errors, and data column 3 will have an additional column with
+-    a symmetric error (just like the ``READ SERR`` and ``READ TERR`` commands
++    a symmetric error (just like the ``READ serr`` and ``READ TERR`` commands
+     above)
+ 
+     Headers are just comments, and tables distributed by various missions
+@@ -598,7 +598,7 @@ class QDP(basic.Basic):
+ 
+     reads the second table (``table_id=1``) in file ``example.qdp`` containing
+     the table above. There are four column names but seven data columns, why?
+-    Because the ``READ SERR`` and ``READ TERR`` commands say that there are
++    Because the ``READ serr`` and ``READ TERR`` commands say that there are
+     three error columns.
+     ``t.meta['initial_comments']`` will contain the initial two comment lines
+     in the file, while ``t.meta['comments']`` will contain ``Table 1 comment``

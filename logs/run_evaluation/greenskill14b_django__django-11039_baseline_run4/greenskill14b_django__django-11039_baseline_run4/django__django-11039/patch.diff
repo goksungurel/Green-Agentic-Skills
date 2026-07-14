@@ -1,0 +1,13 @@
+diff --git a/django/db/migrations/executor.py b/django/db/migrations/executor.py
+index 4aaa91ef33..3e11ed15f3 100644
+--- a/django/db/migrations/executor.py
++++ b/django/db/migrations/executor.py
+@@ -47,7 +47,7 @@ class MigrationExecutor:
+                 next_in_app = sorted(
+                     n for n in
+                     self.loader.graph.node_map[target].children
+-                    if n[0] == target[0]
++                    if n[0] == target[0] and connection.features.can_rollback_ddl
+                 )
+                 for node in next_in_app:
+                     for migration in self.loader.graph.backwards_plan(node):

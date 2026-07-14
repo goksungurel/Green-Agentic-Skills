@@ -68,5 +68,9 @@ tmp*.json
 
 # Local notes and tooling
 RAPOR.md
-logs/
 .claude/
+
+# Harness logs — keep report.json and patch.diff, exclude bulky outputs
+logs/run_evaluation/**/run_instance.log
+logs/run_evaluation/**/test_output.txt
+logs/run_evaluation/**/eval.sh

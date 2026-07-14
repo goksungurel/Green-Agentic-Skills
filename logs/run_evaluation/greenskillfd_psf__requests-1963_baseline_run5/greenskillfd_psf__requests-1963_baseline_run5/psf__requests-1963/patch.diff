@@ -1,0 +1,74 @@
+diff --git a/requests/models.py b/requests/models.py
+index e2fa09f8..343b3f75 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -223,7 +223,7 @@ class Request(RequestHooksMixin):
+         for (k, v) in list(hooks.items()):
+             self.register_hook(event=k, hook=v)
+ 
+-        self.method = method
++        request.method = method
+         self.url = url
+         self.headers = headers
+         self.files = files
+@@ -233,13 +233,13 @@ class Request(RequestHooksMixin):
+         self.cookies = cookies
+ 
+     def __repr__(self):
+-        return '<Request [%s]>' % (self.method)
++        return '<Request [%s]>' % (request.method)
+ 
+     def prepare(self):
+         """Constructs a :class:`PreparedRequest <PreparedRequest>` for transmission and returns it."""
+         p = PreparedRequest()
+         p.prepare(
+-            method=self.method,
++            method=request.method,
+             url=self.url,
+             headers=self.headers,
+             files=self.files,
+@@ -273,7 +273,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+ 
+     def __init__(self):
+         #: HTTP verb to send to the server.
+-        self.method = None
++        request.method = None
+         #: HTTP URL to send the request to.
+         self.url = None
+         #: dictionary of HTTP headers.
+@@ -303,11 +303,11 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+         self.prepare_hooks(hooks)
+ 
+     def __repr__(self):
+-        return '<PreparedRequest [%s]>' % (self.method)
++        return '<PreparedRequest [%s]>' % (request.method)
+ 
+     def copy(self):
+         p = PreparedRequest()
+-        p.method = self.method
++        p.method = request.method
+         p.url = self.url
+         p.headers = self.headers.copy()
+         p._cookies = self._cookies.copy()
+@@ -317,9 +317,9 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+ 
+     def prepare_method(self, method):
+         """Prepares the given HTTP method."""
+-        self.method = method
+-        if self.method is not None:
+-            self.method = self.method.upper()
++        request.method = method
++        if request.method is not None:
++            request.method = request.method.upper()
+ 
+     def prepare_url(self, url, params):
+         """Prepares the given HTTP URL."""
+@@ -457,7 +457,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+             l = super_len(body)
+             if l:
+                 self.headers['Content-Length'] = builtin_str(l)
+-        elif self.method not in ('GET', 'HEAD'):
++        elif request.method not in ('GET', 'HEAD'):
+             self.headers['Content-Length'] = '0'
+ 
+     def prepare_auth(self, auth, url=''):

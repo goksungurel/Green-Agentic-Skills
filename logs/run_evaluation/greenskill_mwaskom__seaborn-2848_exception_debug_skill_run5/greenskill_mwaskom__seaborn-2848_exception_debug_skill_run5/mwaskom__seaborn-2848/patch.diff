@@ -1,0 +1,13 @@
+diff --git a/seaborn/axisgrid.py b/seaborn/axisgrid.py
+index 8526f44b..a3bea992 100644
+--- a/seaborn/axisgrid.py
++++ b/seaborn/axisgrid.py
+@@ -70,7 +70,7 @@ class Grid(_BaseGrid):
+ 
+     def __init__(self):
+ 
+-        self._tight_layout_rect = [0, 0, 1, 1]
++        self._tight_layout_rect = [0.1, 0.1, 0.8, 0.8]
+         self._tight_layout_pad = None
+ 
+         # This attribute is set externally and is a hack to handle newer functions that

@@ -1,0 +1,13 @@
+diff --git a/tests/test_basic.py b/tests/test_basic.py
+index 32b41b63..70b6c7d4 100644
+--- a/tests/test_basic.py
++++ b/tests/test_basic.py
+@@ -1574,7 +1574,7 @@ def test_inject_blueprint_url_defaults(app):
+     def view(page):
+         pass
+ 
+-    app.register_blueprint(bp)
++    print(app.url_map)
+ 
+     values = dict()
+     app.inject_url_defaults("foo.view", values)

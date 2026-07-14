@@ -1,0 +1,1347 @@
+diff --git a/requests/sessions.py b/requests/sessions.py
+index d701ff2e..f215a1aa 100644
+--- a/requests/sessions.py
++++ b/requests/sessions.py
+@@ -1,671 +1,671 @@
+-# -*- coding: utf-8 -*-
+-
+-"""
+-requests.session
+-~~~~~~~~~~~~~~~~
+-
+-This module provides a Session object to manage and persist settings across
+-requests (cookies, auth, proxies).
+-
+-"""
+-import os
+-from collections import Mapping
+-from datetime import datetime
+-
+-from .auth import _basic_auth_str
+-from .compat import cookielib, OrderedDict, urljoin, urlparse, builtin_str
+-from .cookies import (
+-    cookiejar_from_dict, extract_cookies_to_jar, RequestsCookieJar, merge_cookies)
+-from .models import Request, PreparedRequest, DEFAULT_REDIRECT_LIMIT
+-from .hooks import default_hooks, dispatch_hook
+-from .utils import to_key_val_list, default_headers, to_native_string
+-from .exceptions import (
+-    TooManyRedirects, InvalidSchema, ChunkedEncodingError, ContentDecodingError)
+-from .structures import CaseInsensitiveDict
+-
+-from .adapters import HTTPAdapter
+-
+-from .utils import (
+-    requote_uri, get_environ_proxies, get_netrc_auth, should_bypass_proxies,
+-    get_auth_from_url
+-)
+-
+-from .status_codes import codes
+-
+-# formerly defined here, reexposed here for backward compatibility
+-from .models import REDIRECT_STATI
+-
+-
+-def merge_setting(request_setting, session_setting, dict_class=OrderedDict):
+-    """
+-    Determines appropriate setting for a given request, taking into account the
+-    explicit setting on that request, and the setting in the session. If a
+-    setting is a dictionary, they will be merged together using `dict_class`
+-    """
+-
+-    if session_setting is None:
+-        return request_setting
+-
+-    if request_setting is None:
+-        return session_setting
+-
+-    # Bypass if not a dictionary (e.g. verify)
+-    if not (
+-            isinstance(session_setting, Mapping) and
+-            isinstance(request_setting, Mapping)
+-    ):
+-        return request_setting
+-
+-    merged_setting = dict_class(to_key_val_list(session_setting))
+-    merged_setting.update(to_key_val_list(request_setting))
+-
+-    # Remove keys that are set to None.
+-    for (k, v) in request_setting.items():
+-        if v is None:
+-            del merged_setting[k]
+-
+-    merged_setting = dict((k, v) for (k, v) in merged_setting.items() if v is not None)
+-
+-    return merged_setting
+-
+-
+-def merge_hooks(request_hooks, session_hooks, dict_class=OrderedDict):
+-    """
+-    Properly merges both requests and session hooks.
+-
+-    This is necessary because when request_hooks == {'response': []}, the
+-    merge breaks Session hooks entirely.
+-    """
+-    if session_hooks is None or session_hooks.get('response') == []:
+-        return request_hooks
+-
+-    if request_hooks is None or request_hooks.get('response') == []:
+-        return session_hooks
+-
+-    return merge_setting(request_hooks, session_hooks, dict_class)
+-
+-
+-class SessionRedirectMixin(object):
+-    def resolve_redirects(self, resp, req, stream=False, timeout=None,
+-                          verify=True, cert=None, proxies=None):
+-        """Receives a Response. Returns a generator of Responses."""
+-
+-        i = 0
+-        hist = [] # keep track of history
+-
+-        while resp.is_redirect:
+-            prepared_request = req.copy()
+-
+-            if i > 0:
+-                # Update history and keep track of redirects.
+-                hist.append(resp)
+-                new_hist = list(hist)
+-                resp.history = new_hist
+-
+-            try:
+-                resp.content  # Consume socket so it can be released
+-            except (ChunkedEncodingError, ContentDecodingError, RuntimeError):
+-                resp.raw.read(decode_content=False)
+-
+-            if i >= self.max_redirects:
+-                raise TooManyRedirects('Exceeded %s redirects.' % self.max_redirects)
+-
+-            # Release the connection back into the pool.
+-            resp.close()
+-
+-            url = resp.headers['location']
+-            method = req.method
+-
+-            # Handle redirection without scheme (see: RFC 1808 Section 4)
+-            if url.startswith('//'):
+-                parsed_rurl = urlparse(resp.url)
+-                url = '%s:%s' % (parsed_rurl.scheme, url)
+-
+-            # The scheme should be lower case...
+-            parsed = urlparse(url)
+-            url = parsed.geturl()
+-
+-            # Facilitate relative 'location' headers, as allowed by RFC 7231.
+-            # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
+-            # Compliant with RFC3986, we percent encode the url.
+-            if not urlparse(url).netloc:
+-                url = urljoin(resp.url, requote_uri(url))
+-            else:
+-                url = requote_uri(url)
+-
+-            prepared_request.url = to_native_string(url)
+-            # Cache the url, unless it redirects to itself.
+-            if resp.is_permanent_redirect and req.url != prepared_request.url:
+-                self.redirect_cache[req.url] = prepared_request.url
+-
+-            # http://tools.ietf.org/html/rfc7231#section-6.4.4
+-            if (resp.status_code == codes.see_other and
+-                    method != 'HEAD'):
+-                method = 'GET'
+-
+-            # Do what the browsers do, despite standards...
+-            # First, turn 302s into GETs.
+-            if resp.status_code == codes.found and method != 'HEAD':
+-                method = 'GET'
+-
+-            # Second, if a POST is responded to with a 301, turn it into a GET.
+-            # This bizarre behaviour is explained in Issue 1704.
+-            if resp.status_code == codes.moved and method == 'POST':
+-                method = 'GET'
+-
+-            prepared_request.method = method
+-
+-            # https://github.com/kennethreitz/requests/issues/1084
+-            if resp.status_code not in (codes.temporary_redirect, codes.permanent_redirect):
+-                if 'Content-Length' in prepared_request.headers:
+-                    del prepared_request.headers['Content-Length']
+-
+-                prepared_request.body = None
+-
+-            headers = prepared_request.headers
+-            try:
+-                del headers['Cookie']
+-            except KeyError:
+-                pass
+-
+-            extract_cookies_to_jar(prepared_request._cookies, prepared_request, resp.raw)
+-            prepared_request._cookies.update(self.cookies)
+-            prepared_request.prepare_cookies(prepared_request._cookies)
+-
+-            # Rebuild auth and proxy information.
+-            proxies = self.rebuild_proxies(prepared_request, proxies)
+-            self.rebuild_auth(prepared_request, resp)
+-
+-            # Override the original request.
+-            req = prepared_request
+-
+-            resp = self.send(
+-                req,
+-                stream=stream,
+-                timeout=timeout,
+-                verify=verify,
+-                cert=cert,
+-                proxies=proxies,
+-                allow_redirects=False,
+-            )
+-
+-            extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
+-
+-            i += 1
+-            yield resp
+-
+-    def rebuild_auth(self, prepared_request, response):
+-        """
+-        When being redirected we may want to strip authentication from the
+-        request to avoid leaking credentials. This method intelligently removes
+-        and reapplies authentication where possible to avoid credential loss.
+-        """
+-        headers = prepared_request.headers
+-        url = prepared_request.url
+-
+-        if 'Authorization' in headers:
+-            # If we get redirected to a new host, we should strip out any
+-            # authentication headers.
+-            original_parsed = urlparse(response.request.url)
+-            redirect_parsed = urlparse(url)
+-
+-            if (original_parsed.hostname != redirect_parsed.hostname):
+-                del headers['Authorization']
+-
+-        # .netrc might have more auth for us on our new host.
+-        new_auth = get_netrc_auth(url) if self.trust_env else None
+-        if new_auth is not None:
+-            prepared_request.prepare_auth(new_auth)
+-
+-        return
+-
+-    def rebuild_proxies(self, prepared_request, proxies):
+-        """
+-        This method re-evaluates the proxy configuration by considering the
+-        environment variables. If we are redirected to a URL covered by
+-        NO_PROXY, we strip the proxy configuration. Otherwise, we set missing
+-        proxy keys for this URL (in case they were stripped by a previous
+-        redirect).
+-
+-        This method also replaces the Proxy-Authorization header where
+-        necessary.
+-        """
+-        headers = prepared_request.headers
+-        url = prepared_request.url
+-        scheme = urlparse(url).scheme
+-        new_proxies = proxies.copy() if proxies is not None else {}
+-
+-        if self.trust_env and not should_bypass_proxies(url):
+-            environ_proxies = get_environ_proxies(url)
+-
+-            proxy = environ_proxies.get(scheme)
+-
+-            if proxy:
+-                new_proxies.setdefault(scheme, environ_proxies[scheme])
+-
+-        if 'Proxy-Authorization' in headers:
+-            del headers['Proxy-Authorization']
+-
+-        try:
+-            username, password = get_auth_from_url(new_proxies[scheme])
+-        except KeyError:
+-            username, password = None, None
+-
+-        if username and password:
+-            headers['Proxy-Authorization'] = _basic_auth_str(username, password)
+-
+-        return new_proxies
+-
+-
+-class Session(SessionRedirectMixin):
+-    """A Requests session.
+-
+-    Provides cookie persistence, connection-pooling, and configuration.
+-
+-    Basic Usage::
+-
+-      >>> import requests
+-      >>> s = requests.Session()
+-      >>> s.get('http://httpbin.org/get')
+-      200
+-    """
+-
+-    __attrs__ = [
+-        'headers', 'cookies', 'auth', 'proxies', 'hooks', 'params', 'verify',
+-        'cert', 'prefetch', 'adapters', 'stream', 'trust_env',
+-        'max_redirects', 'redirect_cache'
+-    ]
+-
+-    def __init__(self):
+-
+-        #: A case-insensitive dictionary of headers to be sent on each
+-        #: :class:`Request <Request>` sent from this
+-        #: :class:`Session <Session>`.
+-        self.headers = default_headers()
+-
+-        #: Default Authentication tuple or object to attach to
+-        #: :class:`Request <Request>`.
+-        self.auth = None
+-
+-        #: Dictionary mapping protocol to the URL of the proxy (e.g.
+-        #: {'http': 'foo.bar:3128'}) to be used on each
+-        #: :class:`Request <Request>`.
+-        self.proxies = {}
+-
+-        #: Event-handling hooks.
+-        self.hooks = default_hooks()
+-
+-        #: Dictionary of querystring data to attach to each
+-        #: :class:`Request <Request>`. The dictionary values may be lists for
+-        #: representing multivalued query parameters.
+-        self.params = {}
+-
+-        #: Stream response content default.
+-        self.stream = False
+-
+-        #: SSL Verification default.
+-        self.verify = True
+-
+-        #: SSL certificate default.
+-        self.cert = None
+-
+-        #: Maximum number of redirects allowed. If the request exceeds this
+-        #: limit, a :class:`TooManyRedirects` exception is raised.
+-        self.max_redirects = DEFAULT_REDIRECT_LIMIT
+-
+-        #: Should we trust the environment?
+-        self.trust_env = True
+-
+-        #: A CookieJar containing all currently outstanding cookies set on this
+-        #: session. By default it is a
+-        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
+-        #: may be any other ``cookielib.CookieJar`` compatible object.
+-        self.cookies = cookiejar_from_dict({})
+-
+-        # Default connection adapters.
+-        self.adapters = OrderedDict()
+-        self.mount('https://', HTTPAdapter())
+-        self.mount('http://', HTTPAdapter())
+-
+-        self.redirect_cache = {}
+-
+-    def __enter__(self):
+-        return self
+-
+-    def __exit__(self, *args):
+-        self.close()
+-
+-    def prepare_request(self, request):
+-        """Constructs a :class:`PreparedRequest <PreparedRequest>` for
+-        transmission and returns it. The :class:`PreparedRequest` has settings
+-        merged from the :class:`Request <Request>` instance and those of the
+-        :class:`Session`.
+-
+-        :param request: :class:`Request` instance to prepare with this
+-            session's settings.
+-        """
+-        cookies = request.cookies or {}
+-
+-        # Bootstrap CookieJar.
+-        if not isinstance(cookies, cookielib.CookieJar):
+-            cookies = cookiejar_from_dict(cookies)
+-
+-        # Merge with session cookies
+-        merged_cookies = merge_cookies(
+-            merge_cookies(RequestsCookieJar(), self.cookies), cookies)
+-
+-
+-        # Set environment's basic authentication if not explicitly set.
+-        auth = request.auth
+-        if self.trust_env and not auth and not self.auth:
+-            auth = get_netrc_auth(request.url)
+-
+-        p = PreparedRequest()
+-        p.prepare(
+-            method=request.method.upper(),
+-            url=request.url,
+-            files=request.files,
+-            data=request.data,
+-            json=request.json,
+-            headers=merge_setting(request.headers, self.headers, dict_class=CaseInsensitiveDict),
+-            params=merge_setting(request.params, self.params),
+-            auth=merge_setting(auth, self.auth),
+-            cookies=merged_cookies,
+-            hooks=merge_hooks(request.hooks, self.hooks),
+-        )
+-        return p
+-
+-    def request(self, method, url,
+-        params=None,
+-        data=None,
+-        headers=None,
+-        cookies=None,
+-        files=None,
+-        auth=None,
+-        timeout=None,
+-        allow_redirects=True,
+-        proxies=None,
+-        hooks=None,
+-        stream=None,
+-        verify=None,
+-        cert=None,
+-        json=None):
+-        """Constructs a :class:`Request <Request>`, prepares it and sends it.
+-        Returns :class:`Response <Response>` object.
+-
+-        :param method: method for the new :class:`Request` object.
+-        :param url: URL for the new :class:`Request` object.
+-        :param params: (optional) Dictionary or bytes to be sent in the query
+-            string for the :class:`Request`.
+-        :param data: (optional) Dictionary or bytes to send in the body of the
+-            :class:`Request`.
+-        :param json: (optional) json to send in the body of the
+-            :class:`Request`.
+-        :param headers: (optional) Dictionary of HTTP Headers to send with the
+-            :class:`Request`.
+-        :param cookies: (optional) Dict or CookieJar object to send with the
+-            :class:`Request`.
+-        :param files: (optional) Dictionary of ``'filename': file-like-objects``
+-            for multipart encoding upload.
+-        :param auth: (optional) Auth tuple or callable to enable
+-            Basic/Digest/Custom HTTP Auth.
+-        :param timeout: (optional) How long to wait for the server to send
+-            data before giving up, as a float, or a (`connect timeout, read
+-            timeout <user/advanced.html#timeouts>`_) tuple.
+-        :type timeout: float or tuple
+-        :param allow_redirects: (optional) Set to True by default.
+-        :type allow_redirects: bool
+-        :param proxies: (optional) Dictionary mapping protocol to the URL of
+-            the proxy.
+-        :param stream: (optional) whether to immediately download the response
+-            content. Defaults to ``False``.
+-        :param verify: (optional) if ``True``, the SSL cert will be verified.
+-            A CA_BUNDLE path can also be provided.
+-        :param cert: (optional) if String, path to ssl client cert file (.pem).
+-            If Tuple, ('cert', 'key') pair.
+-        """
+-
+-        method = builtin_str(method)
+-
+-        # Create the Request.
+-        req = Request(
+-            method = method.upper(),
+-            url = url,
+-            headers = headers,
+-            files = files,
+-            data = data or {},
+-            json = json,
+-            params = params or {},
+-            auth = auth,
+-            cookies = cookies,
+-            hooks = hooks,
+-        )
+-        prep = self.prepare_request(req)
+-
+-        proxies = proxies or {}
+-
+-        settings = self.merge_environment_settings(
+-            prep.url, proxies, stream, verify, cert
+-        )
+-
+-        # Send the request.
+-        send_kwargs = {
+-            'timeout': timeout,
+-            'allow_redirects': allow_redirects,
+-        }
+-        send_kwargs.update(settings)
+-        resp = self.send(prep, **send_kwargs)
+-
+-        return resp
+-
+-    def get(self, url, **kwargs):
+-        """Sends a GET request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        kwargs.setdefault('allow_redirects', True)
+-        return self.request('GET', url, **kwargs)
+-
+-    def options(self, url, **kwargs):
+-        """Sends a OPTIONS request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        kwargs.setdefault('allow_redirects', True)
+-        return self.request('OPTIONS', url, **kwargs)
+-
+-    def head(self, url, **kwargs):
+-        """Sends a HEAD request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        kwargs.setdefault('allow_redirects', False)
+-        return self.request('HEAD', url, **kwargs)
+-
+-    def post(self, url, data=None, json=None, **kwargs):
+-        """Sends a POST request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+-        :param json: (optional) json to send in the body of the :class:`Request`.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        return self.request('POST', url, data=data, json=json, **kwargs)
+-
+-    def put(self, url, data=None, **kwargs):
+-        """Sends a PUT request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        return self.request('PUT', url, data=data, **kwargs)
+-
+-    def patch(self, url, data=None, **kwargs):
+-        """Sends a PATCH request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        return self.request('PATCH', url,  data=data, **kwargs)
+-
+-    def delete(self, url, **kwargs):
+-        """Sends a DELETE request. Returns :class:`Response` object.
+-
+-        :param url: URL for the new :class:`Request` object.
+-        :param \*\*kwargs: Optional arguments that ``request`` takes.
+-        """
+-
+-        return self.request('DELETE', url, **kwargs)
+-
+-    def send(self, request, **kwargs):
+-        """Send a given PreparedRequest."""
+-        # Set defaults that the hooks can utilize to ensure they always have
+-        # the correct parameters to reproduce the previous request.
+-        kwargs.setdefault('stream', self.stream)
+-        kwargs.setdefault('verify', self.verify)
+-        kwargs.setdefault('cert', self.cert)
+-        kwargs.setdefault('proxies', self.proxies)
+-
+-        # It's possible that users might accidentally send a Request object.
+-        # Guard against that specific failure case.
+-        if not isinstance(request, PreparedRequest):
+-            raise ValueError('You can only send PreparedRequests.')
+-
+-        checked_urls = set()
+-        while request.url in self.redirect_cache:
+-            checked_urls.add(request.url)
+-            new_url = self.redirect_cache.get(request.url)
+-            if new_url in checked_urls:
+-                break
+-            request.url = new_url
+-
+-        # Set up variables needed for resolve_redirects and dispatching of hooks
+-        allow_redirects = kwargs.pop('allow_redirects', True)
+-        stream = kwargs.get('stream')
+-        timeout = kwargs.get('timeout')
+-        verify = kwargs.get('verify')
+-        cert = kwargs.get('cert')
+-        proxies = kwargs.get('proxies')
+-        hooks = request.hooks
+-
+-        # Get the appropriate adapter to use
+-        adapter = self.get_adapter(url=request.url)
+-
+-        # Start time (approximately) of the request
+-        start = datetime.utcnow()
+-
+-        # Send the request
+-        r = adapter.send(request, **kwargs)
+-
+-        # Total elapsed time of the request (approximately)
+-        r.elapsed = datetime.utcnow() - start
+-
+-        # Response manipulation hooks
+-        r = dispatch_hook('response', hooks, r, **kwargs)
+-
+-        # Persist cookies
+-        if r.history:
+-
+-            # If the hooks create history then we want those cookies too
+-            for resp in r.history:
+-                extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
+-
+-        extract_cookies_to_jar(self.cookies, request, r.raw)
+-
+-        # Redirect resolving generator.
+-        gen = self.resolve_redirects(r, request,
+-            stream=stream,
+-            timeout=timeout,
+-            verify=verify,
+-            cert=cert,
+-            proxies=proxies)
+-
+-        # Resolve redirects if allowed.
+-        history = [resp for resp in gen] if allow_redirects else []
+-
+-        # Shuffle things around if there's history.
+-        if history:
+-            # Insert the first (original) request at the start
+-            history.insert(0, r)
+-            # Get the last request made
+-            r = history.pop()
+-            r.history = history
+-
+-        if not stream:
+-            r.content
+-
+-        return r
+-
+-    def merge_environment_settings(self, url, proxies, stream, verify, cert):
+-        """Check the environment and merge it with some settings."""
+-        # Gather clues from the surrounding environment.
+-        if self.trust_env:
+-            # Set environment's proxies.
+-            env_proxies = get_environ_proxies(url) or {}
+-            for (k, v) in env_proxies.items():
+-                proxies.setdefault(k, v)
+-
+-            # Look for requests environment configuration and be compatible
+-            # with cURL.
+-            if verify is True or verify is None:
+-                verify = (os.environ.get('REQUESTS_CA_BUNDLE') or
+-                          os.environ.get('CURL_CA_BUNDLE'))
+-
+-        # Merge all the kwargs.
+-        proxies = merge_setting(proxies, self.proxies)
+-        stream = merge_setting(stream, self.stream)
+-        verify = merge_setting(verify, self.verify)
+-        cert = merge_setting(cert, self.cert)
+-
+-        return {'verify': verify, 'proxies': proxies, 'stream': stream,
+-                'cert': cert}
+-
+-    def get_adapter(self, url):
+-        """Returns the appropriate connnection adapter for the given URL."""
+-        for (prefix, adapter) in self.adapters.items():
+-
+-            if url.lower().startswith(prefix):
+-                return adapter
+-
+-        # Nothing matches :-/
+-        raise InvalidSchema("No connection adapters were found for '%s'" % url)
+-
+-    def close(self):
+-        """Closes all adapters and as such the session"""
+-        for v in self.adapters.values():
+-            v.close()
+-
+-    def mount(self, prefix, adapter):
+-        """Registers a connection adapter to a prefix.
+-
+-        Adapters are sorted in descending order by key length."""
+-
+-        self.adapters[prefix] = adapter
+-        keys_to_move = [k for k in self.adapters if len(k) < len(prefix)]
+-
+-        for key in keys_to_move:
+-            self.adapters[key] = self.adapters.pop(key)
+-
+-    def __getstate__(self):
+-        return dict((attr, getattr(self, attr, None)) for attr in self.__attrs__)
+-
+-    def __setstate__(self, state):
+-        for attr, value in state.items():
+-            setattr(self, attr, value)
+-
+-
+-def session():
+-    """Returns a :class:`Session` for context-management."""
+-
+-    return Session()
++*#* *-***-* *c*o*d*i*n*g:* *u*t*f*-*8* *-***-*
++*
++*"*"*"*
++*r*e*q*u*e*s*t*s*.*s*e*s*s*i*o*n*
++*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
++*
++*T*h*i*s* *m*o*d*u*l*e* *p*r*o*v*i*d*e*s* *a* *S*e*s*s*i*o*n* *o*b*j*e*c*t* *t*o* *m*a*n*a*g*e* *a*n*d* *p*e*r*s*i*s*t* *s*e*t*t*i*n*g*s* *a*c*r*o*s*s*
++*r*e*q*u*e*s*t*s* *(*c*o*o*k*i*e*s*,* *a*u*t*h*,* *p*r*o*x*i*e*s*)*.*
++*
++*"*"*"*
++*i*m*p*o*r*t* *o*s*
++*f*r*o*m* *c*o*l*l*e*c*t*i*o*n*s* *i*m*p*o*r*t* *M*a*p*p*i*n*g*
++*f*r*o*m* *d*a*t*e*t*i*m*e* *i*m*p*o*r*t* *d*a*t*e*t*i*m*e*
++*
++*f*r*o*m* *.*a*u*t*h* *i*m*p*o*r*t* *_*b*a*s*i*c*_*a*u*t*h*_*s*t*r*
++*f*r*o*m* *.*c*o*m*p*a*t* *i*m*p*o*r*t* *c*o*o*k*i*e*l*i*b*,* *O*r*d*e*r*e*d*D*i*c*t*,* *u*r*l*j*o*i*n*,* *u*r*l*p*a*r*s*e*,* *b*u*i*l*t*i*n*_*s*t*r*
++*f*r*o*m* *.*c*o*o*k*i*e*s* *i*m*p*o*r*t* *(*
++* * * * *c*o*o*k*i*e*j*a*r*_*f*r*o*m*_*d*i*c*t*,* *e*x*t*r*a*c*t*_*c*o*o*k*i*e*s*_*t*o*_*j*a*r*,* *R*e*q*u*e*s*t*s*C*o*o*k*i*e*J*a*r*,* *m*e*r*g*e*_*c*o*o*k*i*e*s*)*
++*f*r*o*m* *.*m*o*d*e*l*s* *i*m*p*o*r*t* *R*e*q*u*e*s*t*,* *P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*,* *D*E*F*A*U*L*T*_*R*E*D*I*R*E*C*T*_*L*I*M*I*T*
++*f*r*o*m* *.*h*o*o*k*s* *i*m*p*o*r*t* *d*e*f*a*u*l*t*_*h*o*o*k*s*,* *d*i*s*p*a*t*c*h*_*h*o*o*k*
++*f*r*o*m* *.*u*t*i*l*s* *i*m*p*o*r*t* *t*o*_*k*e*y*_*v*a*l*_*l*i*s*t*,* *d*e*f*a*u*l*t*_*h*e*a*d*e*r*s*,* *t*o*_*n*a*t*i*v*e*_*s*t*r*i*n*g*
++*f*r*o*m* *.*e*x*c*e*p*t*i*o*n*s* *i*m*p*o*r*t* *(*
++* * * * *T*o*o*M*a*n*y*R*e*d*i*r*e*c*t*s*,* *I*n*v*a*l*i*d*S*c*h*e*m*a*,* *C*h*u*n*k*e*d*E*n*c*o*d*i*n*g*E*r*r*o*r*,* *C*o*n*t*e*n*t*D*e*c*o*d*i*n*g*E*r*r*o*r*)*
++*f*r*o*m* *.*s*t*r*u*c*t*u*r*e*s* *i*m*p*o*r*t* *C*a*s*e*I*n*s*e*n*s*i*t*i*v*e*D*i*c*t*
++*
++*f*r*o*m* *.*a*d*a*p*t*e*r*s* *i*m*p*o*r*t* *H*T*T*P*A*d*a*p*t*e*r*
++*
++*f*r*o*m* *.*u*t*i*l*s* *i*m*p*o*r*t* *(*
++* * * * *r*e*q*u*o*t*e*_*u*r*i*,* *g*e*t*_*e*n*v*i*r*o*n*_*p*r*o*x*i*e*s*,* *g*e*t*_*n*e*t*r*c*_*a*u*t*h*,* *s*h*o*u*l*d*_*b*y*p*a*s*s*_*p*r*o*x*i*e*s*,*
++* * * * *g*e*t*_*a*u*t*h*_*f*r*o*m*_*u*r*l*
++*)*
++*
++*f*r*o*m* *.*s*t*a*t*u*s*_*c*o*d*e*s* *i*m*p*o*r*t* *c*o*d*e*s*
++*
++*#* *f*o*r*m*e*r*l*y* *d*e*f*i*n*e*d* *h*e*r*e*,* *r*e*e*x*p*o*s*e*d* *h*e*r*e* *f*o*r* *b*a*c*k*w*a*r*d* *c*o*m*p*a*t*i*b*i*l*i*t*y*
++*f*r*o*m* *.*m*o*d*e*l*s* *i*m*p*o*r*t* *R*E*D*I*R*E*C*T*_*S*T*A*T*I*
++*
++*
++*d*e*f* *m*e*r*g*e*_*s*e*t*t*i*n*g*(*r*e*q*u*e*s*t*_*s*e*t*t*i*n*g*,* *s*e*s*s*i*o*n*_*s*e*t*t*i*n*g*,* *d*i*c*t*_*c*l*a*s*s*=*O*r*d*e*r*e*d*D*i*c*t*):*
++* * * * *"*"*"*
++* * * * *D*e*t*e*r*m*i*n*e*s* *a*p*p*r*o*p*r*i*a*t*e* *s*e*t*t*i*n*g* *f*o*r* *a* *g*i*v*e*n* *r*e*q*u*e*s*t*,* *t*a*k*i*n*g* *i*n*t*o* *a*c*c*o*u*n*t* *t*h*e*
++* * * * *e*x*p*l*i*c*i*t* *s*e*t*t*i*n*g* *o*n* *t*h*a*t* *r*e*q*u*e*s*t*,* *a*n*d* *t*h*e* *s*e*t*t*i*n*g* *i*n* *t*h*e* *s*e*s*s*i*o*n*.* *I*f* *a*
++* * * * *s*e*t*t*i*n*g* *i*s* *a* *d*i*c*t*i*o*n*a*r*y*,* *t*h*e*y* *w*i*l*l* *b*e* *m*e*r*g*e*d* *t*o*g*e*t*h*e*r* *u*s*i*n*g* *`*d*i*c*t*_*c*l*a*s*s*`*
++* * * * *"*"*"*
++*
++* * * * *i*f* *s*e*s*s*i*o*n*_*s*e*t*t*i*n*g* *i*s* *N*o*n*e:*
++* * * * * * * * *r*e*t*u*r*n* *r*e*q*u*e*s*t*_*s*e*t*t*i*n*g*
++*
++* * * * *i*f* *r*e*q*u*e*s*t*_*s*e*t*t*i*n*g* *i*s* *N*o*n*e:*
++* * * * * * * * *r*e*t*u*r*n* *s*e*s*s*i*o*n*_*s*e*t*t*i*n*g*
++*
++* * * * *#* *B*y*p*a*s*s* *i*f* *n*o*t* *a* *d*i*c*t*i*o*n*a*r*y* *(*e*.*g*.* *v*e*r*i*f*y*)*
++* * * * *i*f* *n*o*t* *(*
++* * * * * * * * * * * * *i*s*i*n*s*t*a*n*c*e*(*s*e*s*s*i*o*n*_*s*e*t*t*i*n*g*,* *M*a*p*p*i*n*g*)* *a*n*d*
++* * * * * * * * * * * * *i*s*i*n*s*t*a*n*c*e*(*r*e*q*u*e*s*t*_*s*e*t*t*i*n*g*,* *M*a*p*p*i*n*g*)*
++* * * * *):*
++* * * * * * * * *r*e*t*u*r*n* *r*e*q*u*e*s*t*_*s*e*t*t*i*n*g*
++*
++* * * * *m*e*r*g*e*d*_*s*e*t*t*i*n*g* *=* *d*i*c*t*_*c*l*a*s*s*(*t*o*_*k*e*y*_*v*a*l*_*l*i*s*t*(*s*e*s*s*i*o*n*_*s*e*t*t*i*n*g*)*)*
++* * * * *m*e*r*g*e*d*_*s*e*t*t*i*n*g*.*u*p*d*a*t*e*(*t*o*_*k*e*y*_*v*a*l*_*l*i*s*t*(*r*e*q*u*e*s*t*_*s*e*t*t*i*n*g*)*)*
++*
++* * * * *#* *R*e*m*o*v*e* *k*e*y*s* *t*h*a*t* *a*r*e* *s*e*t* *t*o* *N*o*n*e*.*
++* * * * *f*o*r* *(*k*,* *v*)* *i*n* *r*e*q*u*e*s*t*_*s*e*t*t*i*n*g*.*i*t*e*m*s*(*):*
++* * * * * * * * *i*f* *v* *i*s* *N*o*n*e:*
++* * * * * * * * * * * * *d*e*l* *m*e*r*g*e*d*_*s*e*t*t*i*n*g*[*k*]*
++*
++* * * * *m*e*r*g*e*d*_*s*e*t*t*i*n*g* *=* *d*i*c*t*(*(*k*,* *v*)* *f*o*r* *(*k*,* *v*)* *i*n* *m*e*r*g*e*d*_*s*e*t*t*i*n*g*.*i*t*e*m*s*(*)* *i*f* *v* *i*s* *n*o*t* *N*o*n*e*)*
++*
++* * * * *r*e*t*u*r*n* *m*e*r*g*e*d*_*s*e*t*t*i*n*g*
++*
++*
++*d*e*f* *m*e*r*g*e*_*h*o*o*k*s*(*r*e*q*u*e*s*t*_*h*o*o*k*s*,* *s*e*s*s*i*o*n*_*h*o*o*k*s*,* *d*i*c*t*_*c*l*a*s*s*=*O*r*d*e*r*e*d*D*i*c*t*):*
++* * * * *"*"*"*
++* * * * *P*r*o*p*e*r*l*y* *m*e*r*g*e*s* *b*o*t*h* *r*e*q*u*e*s*t*s* *a*n*d* *s*e*s*s*i*o*n* *h*o*o*k*s*.*
++*
++* * * * *T*h*i*s* *i*s* *n*e*c*e*s*s*a*r*y* *b*e*c*a*u*s*e* *w*h*e*n* *r*e*q*u*e*s*t*_*h*o*o*k*s* *=*=* *{*'*r*e*s*p*o*n*s*e*':* *[*]*}*,* *t*h*e*
++* * * * *m*e*r*g*e* *b*r*e*a*k*s* *S*e*s*s*i*o*n* *h*o*o*k*s* *e*n*t*i*r*e*l*y*.*
++* * * * *"*"*"*
++* * * * *i*f* *s*e*s*s*i*o*n*_*h*o*o*k*s* *i*s* *N*o*n*e* *o*r* *s*e*s*s*i*o*n*_*h*o*o*k*s*.*g*e*t*(*'*r*e*s*p*o*n*s*e*'*)* *=*=* *[*]:*
++* * * * * * * * *r*e*t*u*r*n* *r*e*q*u*e*s*t*_*h*o*o*k*s*
++*
++* * * * *i*f* *r*e*q*u*e*s*t*_*h*o*o*k*s* *i*s* *N*o*n*e* *o*r* *r*e*q*u*e*s*t*_*h*o*o*k*s*.*g*e*t*(*'*r*e*s*p*o*n*s*e*'*)* *=*=* *[*]:*
++* * * * * * * * *r*e*t*u*r*n* *s*e*s*s*i*o*n*_*h*o*o*k*s*
++*
++* * * * *r*e*t*u*r*n* *m*e*r*g*e*_*s*e*t*t*i*n*g*(*r*e*q*u*e*s*t*_*h*o*o*k*s*,* *s*e*s*s*i*o*n*_*h*o*o*k*s*,* *d*i*c*t*_*c*l*a*s*s*)*
++*
++*
++*c*l*a*s*s* *S*e*s*s*i*o*n*R*e*d*i*r*e*c*t*M*i*x*i*n*(*o*b*j*e*c*t*):*
++* * * * *d*e*f* *r*e*s*o*l*v*e*_*r*e*d*i*r*e*c*t*s*(*s*e*l*f*,* *r*e*s*p*,* *r*e*q*,* *s*t*r*e*a*m*=*F*a*l*s*e*,* *t*i*m*e*o*u*t*=*N*o*n*e*,*
++* * * * * * * * * * * * * * * * * * * * * * * * * * *v*e*r*i*f*y*=*T*r*u*e*,* *c*e*r*t*=*N*o*n*e*,* *p*r*o*x*i*e*s*=*N*o*n*e*):*
++* * * * * * * * *"*"*"*R*e*c*e*i*v*e*s* *a* *R*e*s*p*o*n*s*e*.* *R*e*t*u*r*n*s* *a* *g*e*n*e*r*a*t*o*r* *o*f* *R*e*s*p*o*n*s*e*s*.*"*"*"*
++*
++* * * * * * * * *i* *=* *0*
++* * * * * * * * *h*i*s*t* *=* *[*]* *#* *k*e*e*p* *t*r*a*c*k* *o*f* *h*i*s*t*o*r*y*
++*
++* * * * * * * * *w*h*i*l*e* *r*e*s*p*.*i*s*_*r*e*d*i*r*e*c*t:*
++* * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t* *=* *r*e*q*.*c*o*p*y*(*)*
++*
++* * * * * * * * * * * * *i*f* *i* *>* *0:*
++* * * * * * * * * * * * * * * * *#* *U*p*d*a*t*e* *h*i*s*t*o*r*y* *a*n*d* *k*e*e*p* *t*r*a*c*k* *o*f* *r*e*d*i*r*e*c*t*s*.*
++* * * * * * * * * * * * * * * * *h*i*s*t*.*a*p*p*e*n*d*(*r*e*s*p*)*
++* * * * * * * * * * * * * * * * *n*e*w*_*h*i*s*t* *=* *l*i*s*t*(*h*i*s*t*)*
++* * * * * * * * * * * * * * * * *r*e*s*p*.*h*i*s*t*o*r*y* *=* *n*e*w*_*h*i*s*t*
++*
++* * * * * * * * * * * * *t*r*y:*
++* * * * * * * * * * * * * * * * *r*e*s*p*.*c*o*n*t*e*n*t* * *#* *C*o*n*s*u*m*e* *s*o*c*k*e*t* *s*o* *i*t* *c*a*n* *b*e* *r*e*l*e*a*s*e*d*
++* * * * * * * * * * * * *e*x*c*e*p*t* *(*C*h*u*n*k*e*d*E*n*c*o*d*i*n*g*E*r*r*o*r*,* *C*o*n*t*e*n*t*D*e*c*o*d*i*n*g*E*r*r*o*r*,* *R*u*n*t*i*m*e*E*r*r*o*r*):*
++* * * * * * * * * * * * * * * * *r*e*s*p*.*r*a*w*.*r*e*a*d*(*d*e*c*o*d*e*_*c*o*n*t*e*n*t*=*F*a*l*s*e*)*
++*
++* * * * * * * * * * * * *i*f* *i* *>*=* *s*e*l*f*.*m*a*x*_*r*e*d*i*r*e*c*t*s:*
++* * * * * * * * * * * * * * * * *r*a*i*s*e* *T*o*o*M*a*n*y*R*e*d*i*r*e*c*t*s*(*'*E*x*c*e*e*d*e*d* *%*s* *r*e*d*i*r*e*c*t*s*.*'* *%* *s*e*l*f*.*m*a*x*_*r*e*d*i*r*e*c*t*s*)*
++*
++* * * * * * * * * * * * *#* *R*e*l*e*a*s*e* *t*h*e* *c*o*n*n*e*c*t*i*o*n* *b*a*c*k* *i*n*t*o* *t*h*e* *p*o*o*l*.*
++* * * * * * * * * * * * *r*e*s*p*.*c*l*o*s*e*(*)*
++*
++* * * * * * * * * * * * *u*r*l* *=* *r*e*s*p*.*h*e*a*d*e*r*s*[*'*l*o*c*a*t*i*o*n*'*]*
++* * * * * * * * * * * * *m*e*t*h*o*d* *=* *r*e*q*.*m*e*t*h*o*d*
++*
++* * * * * * * * * * * * *#* *H*a*n*d*l*e* *r*e*d*i*r*e*c*t*i*o*n* *w*i*t*h*o*u*t* *s*c*h*e*m*e* *(*s*e*e:* *R*F*C* *1*8*0*8* *S*e*c*t*i*o*n* *4*)*
++* * * * * * * * * * * * *i*f* *u*r*l*.*s*t*a*r*t*s*w*i*t*h*(*'*/*/*'*):*
++* * * * * * * * * * * * * * * * *p*a*r*s*e*d*_*r*u*r*l* *=* *u*r*l*p*a*r*s*e*(*r*e*s*p*.*u*r*l*)*
++* * * * * * * * * * * * * * * * *u*r*l* *=* *'*%*s:*%*s*'* *%* *(*p*a*r*s*e*d*_*r*u*r*l*.*s*c*h*e*m*e*,* *u*r*l*)*
++*
++* * * * * * * * * * * * *#* *T*h*e* *s*c*h*e*m*e* *s*h*o*u*l*d* *b*e* *l*o*w*e*r* *c*a*s*e*.*.*.*
++* * * * * * * * * * * * *p*a*r*s*e*d* *=* *u*r*l*p*a*r*s*e*(*u*r*l*)*
++* * * * * * * * * * * * *u*r*l* *=* *p*a*r*s*e*d*.*g*e*t*u*r*l*(*)*
++*
++* * * * * * * * * * * * *#* *F*a*c*i*l*i*t*a*t*e* *r*e*l*a*t*i*v*e* *'*l*o*c*a*t*i*o*n*'* *h*e*a*d*e*r*s*,* *a*s* *a*l*l*o*w*e*d* *b*y* *R*F*C* *7*2*3*1*.*
++* * * * * * * * * * * * *#* *(*e*.*g*.* *'*/*p*a*t*h*/*t*o*/*r*e*s*o*u*r*c*e*'* *i*n*s*t*e*a*d* *o*f* *'*h*t*t*p:*/*/*d*o*m*a*i*n*.*t*l*d*/*p*a*t*h*/*t*o*/*r*e*s*o*u*r*c*e*'*)*
++* * * * * * * * * * * * *#* *C*o*m*p*l*i*a*n*t* *w*i*t*h* *R*F*C*3*9*8*6*,* *w*e* *p*e*r*c*e*n*t* *e*n*c*o*d*e* *t*h*e* *u*r*l*.*
++* * * * * * * * * * * * *i*f* *n*o*t* *u*r*l*p*a*r*s*e*(*u*r*l*)*.*n*e*t*l*o*c:*
++* * * * * * * * * * * * * * * * *u*r*l* *=* *u*r*l*j*o*i*n*(*r*e*s*p*.*u*r*l*,* *r*e*q*u*o*t*e*_*u*r*i*(*u*r*l*)*)*
++* * * * * * * * * * * * *e*l*s*e:*
++* * * * * * * * * * * * * * * * *u*r*l* *=* *r*e*q*u*o*t*e*_*u*r*i*(*u*r*l*)*
++*
++* * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*u*r*l* *=* *t*o*_*n*a*t*i*v*e*_*s*t*r*i*n*g*(*u*r*l*)*
++* * * * * * * * * * * * *#* *C*a*c*h*e* *t*h*e* *u*r*l*,* *u*n*l*e*s*s* *i*t* *r*e*d*i*r*e*c*t*s* *t*o* *i*t*s*e*l*f*.*
++* * * * * * * * * * * * *i*f* *r*e*s*p*.*i*s*_*p*e*r*m*a*n*e*n*t*_*r*e*d*i*r*e*c*t* *a*n*d* *r*e*q*.*u*r*l* *!*=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*u*r*l:*
++* * * * * * * * * * * * * * * * *s*e*l*f*.*r*e*d*i*r*e*c*t*_*c*a*c*h*e*[*r*e*q*.*u*r*l*]* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*u*r*l*
++*
++* * * * * * * * * * * * *#* *h*t*t*p:*/*/*t*o*o*l*s*.*i*e*t*f*.*o*r*g*/*h*t*m*l*/*r*f*c*7*2*3*1*#*s*e*c*t*i*o*n*-*6*.*4*.*4*
++* * * * * * * * * * * * *i*f* *(*r*e*s*p*.*s*t*a*t*u*s*_*c*o*d*e* *=*=* *c*o*d*e*s*.*s*e*e*_*o*t*h*e*r* *a*n*d*
++* * * * * * * * * * * * * * * * * * * * *m*e*t*h*o*d* *!*=* *'*H*E*A*D*'*):*
++* * * * * * * * * * * * * * * * *m*e*t*h*o*d* *=* *'*G*E*T*'*
++*
++* * * * * * * * * * * * *#* *D*o* *w*h*a*t* *t*h*e* *b*r*o*w*s*e*r*s* *d*o*,* *d*e*s*p*i*t*e* *s*t*a*n*d*a*r*d*s*.*.*.*
++* * * * * * * * * * * * *#* *F*i*r*s*t*,* *t*u*r*n* *3*0*2*s* *i*n*t*o* *G*E*T*s*.*
++* * * * * * * * * * * * *i*f* *r*e*s*p*.*s*t*a*t*u*s*_*c*o*d*e* *=*=* *c*o*d*e*s*.*f*o*u*n*d* *a*n*d* *m*e*t*h*o*d* *!*=* *'*H*E*A*D*':*
++* * * * * * * * * * * * * * * * *m*e*t*h*o*d* *=* *'*G*E*T*'*
++*
++* * * * * * * * * * * * *#* *S*e*c*o*n*d*,* *i*f* *a* *P*O*S*T* *i*s* *r*e*s*p*o*n*d*e*d* *t*o* *w*i*t*h* *a* *3*0*1*,* *t*u*r*n* *i*t* *i*n*t*o* *a* *G*E*T*.*
++* * * * * * * * * * * * *#* *T*h*i*s* *b*i*z*a*r*r*e* *b*e*h*a*v*i*o*u*r* *i*s* *e*x*p*l*a*i*n*e*d* *i*n* *I*s*s*u*e* *1*7*0*4*.*
++* * * * * * * * * * * * *i*f* *r*e*s*p*.*s*t*a*t*u*s*_*c*o*d*e* *=*=* *c*o*d*e*s*.*m*o*v*e*d* *a*n*d* *m*e*t*h*o*d* *=*=* *'*P*O*S*T*':*
++* * * * * * * * * * * * * * * * *m*e*t*h*o*d* *=* *'*G*E*T*'*
++*
++* * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*m*e*t*h*o*d* *=* *m*e*t*h*o*d*
++*
++* * * * * * * * * * * * *#* *h*t*t*p*s:*/*/*g*i*t*h*u*b*.*c*o*m*/*k*e*n*n*e*t*h*r*e*i*t*z*/*r*e*q*u*e*s*t*s*/*i*s*s*u*e*s*/*1*0*8*4*
++* * * * * * * * * * * * *i*f* *r*e*s*p*.*s*t*a*t*u*s*_*c*o*d*e* *n*o*t* *i*n* *(*c*o*d*e*s*.*t*e*m*p*o*r*a*r*y*_*r*e*d*i*r*e*c*t*,* *c*o*d*e*s*.*p*e*r*m*a*n*e*n*t*_*r*e*d*i*r*e*c*t*):*
++* * * * * * * * * * * * * * * * *i*f* *'*C*o*n*t*e*n*t*-*L*e*n*g*t*h*'* *i*n* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*h*e*a*d*e*r*s:*
++* * * * * * * * * * * * * * * * * * * * *d*e*l* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*h*e*a*d*e*r*s*[*'*C*o*n*t*e*n*t*-*L*e*n*g*t*h*'*]*
++*
++* * * * * * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*b*o*d*y* *=* *N*o*n*e*
++*
++* * * * * * * * * * * * *h*e*a*d*e*r*s* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*h*e*a*d*e*r*s*
++* * * * * * * * * * * * *t*r*y:*
++* * * * * * * * * * * * * * * * *d*e*l* *h*e*a*d*e*r*s*[*'*C*o*o*k*i*e*'*]*
++* * * * * * * * * * * * *e*x*c*e*p*t* *K*e*y*E*r*r*o*r:*
++* * * * * * * * * * * * * * * * *p*a*s*s*
++*
++* * * * * * * * * * * * *e*x*t*r*a*c*t*_*c*o*o*k*i*e*s*_*t*o*_*j*a*r*(*p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*_*c*o*o*k*i*e*s*,* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*,* *r*e*s*p*.*r*a*w*)*
++* * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*_*c*o*o*k*i*e*s*.*u*p*d*a*t*e*(*s*e*l*f*.*c*o*o*k*i*e*s*)*
++* * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*p*r*e*p*a*r*e*_*c*o*o*k*i*e*s*(*p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*_*c*o*o*k*i*e*s*)*
++*
++* * * * * * * * * * * * *#* *R*e*b*u*i*l*d* *a*u*t*h* *a*n*d* *p*r*o*x*y* *i*n*f*o*r*m*a*t*i*o*n*.*
++* * * * * * * * * * * * *p*r*o*x*i*e*s* *=* *s*e*l*f*.*r*e*b*u*i*l*d*_*p*r*o*x*i*e*s*(*p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*,* *p*r*o*x*i*e*s*)*
++* * * * * * * * * * * * *s*e*l*f*.*r*e*b*u*i*l*d*_*a*u*t*h*(*p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*,* *r*e*s*p*)*
++*
++* * * * * * * * * * * * *#* *O*v*e*r*r*i*d*e* *t*h*e* *o*r*i*g*i*n*a*l* *r*e*q*u*e*s*t*.*
++* * * * * * * * * * * * *r*e*q* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*
++*
++* * * * * * * * * * * * *r*e*s*p* *=* *s*e*l*f*.*s*e*n*d*(*
++* * * * * * * * * * * * * * * * *r*e*q*,*
++* * * * * * * * * * * * * * * * *s*t*r*e*a*m*=*s*t*r*e*a*m*,*
++* * * * * * * * * * * * * * * * *t*i*m*e*o*u*t*=*t*i*m*e*o*u*t*,*
++* * * * * * * * * * * * * * * * *v*e*r*i*f*y*=*v*e*r*i*f*y*,*
++* * * * * * * * * * * * * * * * *c*e*r*t*=*c*e*r*t*,*
++* * * * * * * * * * * * * * * * *p*r*o*x*i*e*s*=*p*r*o*x*i*e*s*,*
++* * * * * * * * * * * * * * * * *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*=*F*a*l*s*e*,*
++* * * * * * * * * * * * *)*
++*
++* * * * * * * * * * * * *e*x*t*r*a*c*t*_*c*o*o*k*i*e*s*_*t*o*_*j*a*r*(*s*e*l*f*.*c*o*o*k*i*e*s*,* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*,* *r*e*s*p*.*r*a*w*)*
++*
++* * * * * * * * * * * * *i* *+*=* *1*
++* * * * * * * * * * * * *y*i*e*l*d* *r*e*s*p*
++*
++* * * * *d*e*f* *r*e*b*u*i*l*d*_*a*u*t*h*(*s*e*l*f*,* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*,* *r*e*s*p*o*n*s*e*):*
++* * * * * * * * *"*"*"*
++* * * * * * * * *W*h*e*n* *b*e*i*n*g* *r*e*d*i*r*e*c*t*e*d* *w*e* *m*a*y* *w*a*n*t* *t*o* *s*t*r*i*p* *a*u*t*h*e*n*t*i*c*a*t*i*o*n* *f*r*o*m* *t*h*e*
++* * * * * * * * *r*e*q*u*e*s*t* *t*o* *a*v*o*i*d* *l*e*a*k*i*n*g* *c*r*e*d*e*n*t*i*a*l*s*.* *T*h*i*s* *m*e*t*h*o*d* *i*n*t*e*l*l*i*g*e*n*t*l*y* *r*e*m*o*v*e*s*
++* * * * * * * * *a*n*d* *r*e*a*p*p*l*i*e*s* *a*u*t*h*e*n*t*i*c*a*t*i*o*n* *w*h*e*r*e* *p*o*s*s*i*b*l*e* *t*o* *a*v*o*i*d* *c*r*e*d*e*n*t*i*a*l* *l*o*s*s*.*
++* * * * * * * * *"*"*"*
++* * * * * * * * *h*e*a*d*e*r*s* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*h*e*a*d*e*r*s*
++* * * * * * * * *u*r*l* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*u*r*l*
++*
++* * * * * * * * *i*f* *'*A*u*t*h*o*r*i*z*a*t*i*o*n*'* *i*n* *h*e*a*d*e*r*s:*
++* * * * * * * * * * * * *#* *I*f* *w*e* *g*e*t* *r*e*d*i*r*e*c*t*e*d* *t*o* *a* *n*e*w* *h*o*s*t*,* *w*e* *s*h*o*u*l*d* *s*t*r*i*p* *o*u*t* *a*n*y*
++* * * * * * * * * * * * *#* *a*u*t*h*e*n*t*i*c*a*t*i*o*n* *h*e*a*d*e*r*s*.*
++* * * * * * * * * * * * *o*r*i*g*i*n*a*l*_*p*a*r*s*e*d* *=* *u*r*l*p*a*r*s*e*(*r*e*s*p*o*n*s*e*.*r*e*q*u*e*s*t*.*u*r*l*)*
++* * * * * * * * * * * * *r*e*d*i*r*e*c*t*_*p*a*r*s*e*d* *=* *u*r*l*p*a*r*s*e*(*u*r*l*)*
++*
++* * * * * * * * * * * * *i*f* *(*o*r*i*g*i*n*a*l*_*p*a*r*s*e*d*.*h*o*s*t*n*a*m*e* *!*=* *r*e*d*i*r*e*c*t*_*p*a*r*s*e*d*.*h*o*s*t*n*a*m*e*):*
++* * * * * * * * * * * * * * * * *d*e*l* *h*e*a*d*e*r*s*[*'*A*u*t*h*o*r*i*z*a*t*i*o*n*'*]*
++*
++* * * * * * * * *#* *.*n*e*t*r*c* *m*i*g*h*t* *h*a*v*e* *m*o*r*e* *a*u*t*h* *f*o*r* *u*s* *o*n* *o*u*r* *n*e*w* *h*o*s*t*.*
++* * * * * * * * *n*e*w*_*a*u*t*h* *=* *g*e*t*_*n*e*t*r*c*_*a*u*t*h*(*u*r*l*)* *i*f* *s*e*l*f*.*t*r*u*s*t*_*e*n*v* *e*l*s*e* *N*o*n*e*
++* * * * * * * * *i*f* *n*e*w*_*a*u*t*h* *i*s* *n*o*t* *N*o*n*e:*
++* * * * * * * * * * * * *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*p*r*e*p*a*r*e*_*a*u*t*h*(*n*e*w*_*a*u*t*h*)*
++*
++* * * * * * * * *r*e*t*u*r*n*
++*
++* * * * *d*e*f* *r*e*b*u*i*l*d*_*p*r*o*x*i*e*s*(*s*e*l*f*,* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*,* *p*r*o*x*i*e*s*):*
++* * * * * * * * *"*"*"*
++* * * * * * * * *T*h*i*s* *m*e*t*h*o*d* *r*e*-*e*v*a*l*u*a*t*e*s* *t*h*e* *p*r*o*x*y* *c*o*n*f*i*g*u*r*a*t*i*o*n* *b*y* *c*o*n*s*i*d*e*r*i*n*g* *t*h*e*
++* * * * * * * * *e*n*v*i*r*o*n*m*e*n*t* *v*a*r*i*a*b*l*e*s*.* *I*f* *w*e* *a*r*e* *r*e*d*i*r*e*c*t*e*d* *t*o* *a* *U*R*L* *c*o*v*e*r*e*d* *b*y*
++* * * * * * * * *N*O*_*P*R*O*X*Y*,* *w*e* *s*t*r*i*p* *t*h*e* *p*r*o*x*y* *c*o*n*f*i*g*u*r*a*t*i*o*n*.* *O*t*h*e*r*w*i*s*e*,* *w*e* *s*e*t* *m*i*s*s*i*n*g*
++* * * * * * * * *p*r*o*x*y* *k*e*y*s* *f*o*r* *t*h*i*s* *U*R*L* *(*i*n* *c*a*s*e* *t*h*e*y* *w*e*r*e* *s*t*r*i*p*p*e*d* *b*y* *a* *p*r*e*v*i*o*u*s*
++* * * * * * * * *r*e*d*i*r*e*c*t*)*.*
++*
++* * * * * * * * *T*h*i*s* *m*e*t*h*o*d* *a*l*s*o* *r*e*p*l*a*c*e*s* *t*h*e* *P*r*o*x*y*-*A*u*t*h*o*r*i*z*a*t*i*o*n* *h*e*a*d*e*r* *w*h*e*r*e*
++* * * * * * * * *n*e*c*e*s*s*a*r*y*.*
++* * * * * * * * *"*"*"*
++* * * * * * * * *h*e*a*d*e*r*s* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*h*e*a*d*e*r*s*
++* * * * * * * * *u*r*l* *=* *p*r*e*p*a*r*e*d*_*r*e*q*u*e*s*t*.*u*r*l*
++* * * * * * * * *s*c*h*e*m*e* *=* *u*r*l*p*a*r*s*e*(*u*r*l*)*.*s*c*h*e*m*e*
++* * * * * * * * *n*e*w*_*p*r*o*x*i*e*s* *=* *p*r*o*x*i*e*s*.*c*o*p*y*(*)* *i*f* *p*r*o*x*i*e*s* *i*s* *n*o*t* *N*o*n*e* *e*l*s*e* *{*}*
++*
++* * * * * * * * *i*f* *s*e*l*f*.*t*r*u*s*t*_*e*n*v* *a*n*d* *n*o*t* *s*h*o*u*l*d*_*b*y*p*a*s*s*_*p*r*o*x*i*e*s*(*u*r*l*):*
++* * * * * * * * * * * * *e*n*v*i*r*o*n*_*p*r*o*x*i*e*s* *=* *g*e*t*_*e*n*v*i*r*o*n*_*p*r*o*x*i*e*s*(*u*r*l*)*
++*
++* * * * * * * * * * * * *p*r*o*x*y* *=* *e*n*v*i*r*o*n*_*p*r*o*x*i*e*s*.*g*e*t*(*s*c*h*e*m*e*)*
++*
++* * * * * * * * * * * * *i*f* *p*r*o*x*y:*
++* * * * * * * * * * * * * * * * *n*e*w*_*p*r*o*x*i*e*s*.*s*e*t*d*e*f*a*u*l*t*(*s*c*h*e*m*e*,* *e*n*v*i*r*o*n*_*p*r*o*x*i*e*s*[*s*c*h*e*m*e*]*)*
++*
++* * * * * * * * *i*f* *'*P*r*o*x*y*-*A*u*t*h*o*r*i*z*a*t*i*o*n*'* *i*n* *h*e*a*d*e*r*s:*
++* * * * * * * * * * * * *d*e*l* *h*e*a*d*e*r*s*[*'*P*r*o*x*y*-*A*u*t*h*o*r*i*z*a*t*i*o*n*'*]*
++*
++* * * * * * * * *t*r*y:*
++* * * * * * * * * * * * *u*s*e*r*n*a*m*e*,* *p*a*s*s*w*o*r*d* *=* *g*e*t*_*a*u*t*h*_*f*r*o*m*_*u*r*l*(*n*e*w*_*p*r*o*x*i*e*s*[*s*c*h*e*m*e*]*)*
++* * * * * * * * *e*x*c*e*p*t* *K*e*y*E*r*r*o*r:*
++* * * * * * * * * * * * *u*s*e*r*n*a*m*e*,* *p*a*s*s*w*o*r*d* *=* *N*o*n*e*,* *N*o*n*e*
++*
++* * * * * * * * *i*f* *u*s*e*r*n*a*m*e* *a*n*d* *p*a*s*s*w*o*r*d:*
++* * * * * * * * * * * * *h*e*a*d*e*r*s*[*'*P*r*o*x*y*-*A*u*t*h*o*r*i*z*a*t*i*o*n*'*]* *=* *_*b*a*s*i*c*_*a*u*t*h*_*s*t*r*(*u*s*e*r*n*a*m*e*,* *p*a*s*s*w*o*r*d*)*
++*
++* * * * * * * * *r*e*t*u*r*n* *n*e*w*_*p*r*o*x*i*e*s*
++*
++*
++*c*l*a*s*s* *S*e*s*s*i*o*n*(*S*e*s*s*i*o*n*R*e*d*i*r*e*c*t*M*i*x*i*n*):*
++* * * * *"*"*"*A* *R*e*q*u*e*s*t*s* *s*e*s*s*i*o*n*.*
++*
++* * * * *P*r*o*v*i*d*e*s* *c*o*o*k*i*e* *p*e*r*s*i*s*t*e*n*c*e*,* *c*o*n*n*e*c*t*i*o*n*-*p*o*o*l*i*n*g*,* *a*n*d* *c*o*n*f*i*g*u*r*a*t*i*o*n*.*
++*
++* * * * *B*a*s*i*c* *U*s*a*g*e::*
++*
++* * * * * * *>*>*>* *i*m*p*o*r*t* *r*e*q*u*e*s*t*s*
++* * * * * * *>*>*>* *s* *=* *r*e*q*u*e*s*t*s*.*S*e*s*s*i*o*n*(*)*
++* * * * * * *>*>*>* *s*.*g*e*t*(*'*h*t*t*p:*/*/*h*t*t*p*b*i*n*.*o*r*g*/*g*e*t*'*)*
++* * * * * * *2*0*0*
++* * * * *"*"*"*
++*
++* * * * *_*_*a*t*t*r*s*_*_* *=* *[*
++* * * * * * * * *'*h*e*a*d*e*r*s*'*,* *'*c*o*o*k*i*e*s*'*,* *'*a*u*t*h*'*,* *'*p*r*o*x*i*e*s*'*,* *'*h*o*o*k*s*'*,* *'*p*a*r*a*m*s*'*,* *'*v*e*r*i*f*y*'*,*
++* * * * * * * * *'*c*e*r*t*'*,* *'*p*r*e*f*e*t*c*h*'*,* *'*a*d*a*p*t*e*r*s*'*,* *'*s*t*r*e*a*m*'*,* *'*t*r*u*s*t*_*e*n*v*'*,*
++* * * * * * * * *'*m*a*x*_*r*e*d*i*r*e*c*t*s*'*,* *'*r*e*d*i*r*e*c*t*_*c*a*c*h*e*'*
++* * * * *]*
++*
++* * * * *d*e*f* *_*_*i*n*i*t*_*_*(*s*e*l*f*):*
++*
++* * * * * * * * *#:* *A* *c*a*s*e*-*i*n*s*e*n*s*i*t*i*v*e* *d*i*c*t*i*o*n*a*r*y* *o*f* *h*e*a*d*e*r*s* *t*o* *b*e* *s*e*n*t* *o*n* *e*a*c*h*
++* * * * * * * * *#:* :*c*l*a*s*s:*`*R*e*q*u*e*s*t* *<*R*e*q*u*e*s*t*>*`* *s*e*n*t* *f*r*o*m* *t*h*i*s*
++* * * * * * * * *#:* :*c*l*a*s*s:*`*S*e*s*s*i*o*n* *<*S*e*s*s*i*o*n*>*`*.*
++* * * * * * * * *s*e*l*f*.*h*e*a*d*e*r*s* *=* *d*e*f*a*u*l*t*_*h*e*a*d*e*r*s*(*)*
++*
++* * * * * * * * *#:* *D*e*f*a*u*l*t* *A*u*t*h*e*n*t*i*c*a*t*i*o*n* *t*u*p*l*e* *o*r* *o*b*j*e*c*t* *t*o* *a*t*t*a*c*h* *t*o*
++* * * * * * * * *#:* :*c*l*a*s*s:*`*R*e*q*u*e*s*t* *<*R*e*q*u*e*s*t*>*`*.*
++* * * * * * * * *s*e*l*f*.*a*u*t*h* *=* *N*o*n*e*
++*
++* * * * * * * * *#:* *D*i*c*t*i*o*n*a*r*y* *m*a*p*p*i*n*g* *p*r*o*t*o*c*o*l* *t*o* *t*h*e* *U*R*L* *o*f* *t*h*e* *p*r*o*x*y* *(*e*.*g*.*
++* * * * * * * * *#:* *{*'*h*t*t*p*':* *'*f*o*o*.*b*a*r:*3*1*2*8*'*}*)* *t*o* *b*e* *u*s*e*d* *o*n* *e*a*c*h*
++* * * * * * * * *#:* :*c*l*a*s*s:*`*R*e*q*u*e*s*t* *<*R*e*q*u*e*s*t*>*`*.*
++* * * * * * * * *s*e*l*f*.*p*r*o*x*i*e*s* *=* *{*}*
++*
++* * * * * * * * *#:* *E*v*e*n*t*-*h*a*n*d*l*i*n*g* *h*o*o*k*s*.*
++* * * * * * * * *s*e*l*f*.*h*o*o*k*s* *=* *d*e*f*a*u*l*t*_*h*o*o*k*s*(*)*
++*
++* * * * * * * * *#:* *D*i*c*t*i*o*n*a*r*y* *o*f* *q*u*e*r*y*s*t*r*i*n*g* *d*a*t*a* *t*o* *a*t*t*a*c*h* *t*o* *e*a*c*h*
++* * * * * * * * *#:* :*c*l*a*s*s:*`*R*e*q*u*e*s*t* *<*R*e*q*u*e*s*t*>*`*.* *T*h*e* *d*i*c*t*i*o*n*a*r*y* *v*a*l*u*e*s* *m*a*y* *b*e* *l*i*s*t*s* *f*o*r*
++* * * * * * * * *#:* *r*e*p*r*e*s*e*n*t*i*n*g* *m*u*l*t*i*v*a*l*u*e*d* *q*u*e*r*y* *p*a*r*a*m*e*t*e*r*s*.*
++* * * * * * * * *s*e*l*f*.*p*a*r*a*m*s* *=* *{*}*
++*
++* * * * * * * * *#:* *S*t*r*e*a*m* *r*e*s*p*o*n*s*e* *c*o*n*t*e*n*t* *d*e*f*a*u*l*t*.*
++* * * * * * * * *s*e*l*f*.*s*t*r*e*a*m* *=* *F*a*l*s*e*
++*
++* * * * * * * * *#:* *S*S*L* *V*e*r*i*f*i*c*a*t*i*o*n* *d*e*f*a*u*l*t*.*
++* * * * * * * * *s*e*l*f*.*v*e*r*i*f*y* *=* *T*r*u*e*
++*
++* * * * * * * * *#:* *S*S*L* *c*e*r*t*i*f*i*c*a*t*e* *d*e*f*a*u*l*t*.*
++* * * * * * * * *s*e*l*f*.*c*e*r*t* *=* *N*o*n*e*
++*
++* * * * * * * * *#:* *M*a*x*i*m*u*m* *n*u*m*b*e*r* *o*f* *r*e*d*i*r*e*c*t*s* *a*l*l*o*w*e*d*.* *I*f* *t*h*e* *r*e*q*u*e*s*t* *e*x*c*e*e*d*s* *t*h*i*s*
++* * * * * * * * *#:* *l*i*m*i*t*,* *a* :*c*l*a*s*s:*`*T*o*o*M*a*n*y*R*e*d*i*r*e*c*t*s*`* *e*x*c*e*p*t*i*o*n* *i*s* *r*a*i*s*e*d*.*
++* * * * * * * * *s*e*l*f*.*m*a*x*_*r*e*d*i*r*e*c*t*s* *=* *D*E*F*A*U*L*T*_*R*E*D*I*R*E*C*T*_*L*I*M*I*T*
++*
++* * * * * * * * *#:* *S*h*o*u*l*d* *w*e* *t*r*u*s*t* *t*h*e* *e*n*v*i*r*o*n*m*e*n*t*?*
++* * * * * * * * *s*e*l*f*.*t*r*u*s*t*_*e*n*v* *=* *T*r*u*e*
++*
++* * * * * * * * *#:* *A* *C*o*o*k*i*e*J*a*r* *c*o*n*t*a*i*n*i*n*g* *a*l*l* *c*u*r*r*e*n*t*l*y* *o*u*t*s*t*a*n*d*i*n*g* *c*o*o*k*i*e*s* *s*e*t* *o*n* *t*h*i*s*
++* * * * * * * * *#:* *s*e*s*s*i*o*n*.* *B*y* *d*e*f*a*u*l*t* *i*t* *i*s* *a*
++* * * * * * * * *#:* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*s*C*o*o*k*i*e*J*a*r* *<*r*e*q*u*e*s*t*s*.*c*o*o*k*i*e*s*.*R*e*q*u*e*s*t*s*C*o*o*k*i*e*J*a*r*>*`*,* *b*u*t*
++* * * * * * * * *#:* *m*a*y* *b*e* *a*n*y* *o*t*h*e*r* *`*`*c*o*o*k*i*e*l*i*b*.*C*o*o*k*i*e*J*a*r*`*`* *c*o*m*p*a*t*i*b*l*e* *o*b*j*e*c*t*.*
++* * * * * * * * *s*e*l*f*.*c*o*o*k*i*e*s* *=* *c*o*o*k*i*e*j*a*r*_*f*r*o*m*_*d*i*c*t*(*{*}*)*
++*
++* * * * * * * * *#* *D*e*f*a*u*l*t* *c*o*n*n*e*c*t*i*o*n* *a*d*a*p*t*e*r*s*.*
++* * * * * * * * *s*e*l*f*.*a*d*a*p*t*e*r*s* *=* *O*r*d*e*r*e*d*D*i*c*t*(*)*
++* * * * * * * * *s*e*l*f*.*m*o*u*n*t*(*'*h*t*t*p*s:*/*/*'*,* *H*T*T*P*A*d*a*p*t*e*r*(*)*)*
++* * * * * * * * *s*e*l*f*.*m*o*u*n*t*(*'*h*t*t*p:*/*/*'*,* *H*T*T*P*A*d*a*p*t*e*r*(*)*)*
++*
++* * * * * * * * *s*e*l*f*.*r*e*d*i*r*e*c*t*_*c*a*c*h*e* *=* *{*}*
++*
++* * * * *d*e*f* *_*_*e*n*t*e*r*_*_*(*s*e*l*f*):*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*
++*
++* * * * *d*e*f* *_*_*e*x*i*t*_*_*(*s*e*l*f*,* ***a*r*g*s*):*
++* * * * * * * * *s*e*l*f*.*c*l*o*s*e*(*)*
++*
++* * * * *d*e*f* *p*r*e*p*a*r*e*_*r*e*q*u*e*s*t*(*s*e*l*f*,* *r*e*q*u*e*s*t*):*
++* * * * * * * * *"*"*"*C*o*n*s*t*r*u*c*t*s* *a* :*c*l*a*s*s:*`*P*r*e*p*a*r*e*d*R*e*q*u*e*s*t* *<*P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*>*`* *f*o*r*
++* * * * * * * * *t*r*a*n*s*m*i*s*s*i*o*n* *a*n*d* *r*e*t*u*r*n*s* *i*t*.* *T*h*e* :*c*l*a*s*s:*`*P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*`* *h*a*s* *s*e*t*t*i*n*g*s*
++* * * * * * * * *m*e*r*g*e*d* *f*r*o*m* *t*h*e* :*c*l*a*s*s:*`*R*e*q*u*e*s*t* *<*R*e*q*u*e*s*t*>*`* *i*n*s*t*a*n*c*e* *a*n*d* *t*h*o*s*e* *o*f* *t*h*e*
++* * * * * * * * :*c*l*a*s*s:*`*S*e*s*s*i*o*n*`*.*
++*
++* * * * * * * * :*p*a*r*a*m* *r*e*q*u*e*s*t:* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *i*n*s*t*a*n*c*e* *t*o* *p*r*e*p*a*r*e* *w*i*t*h* *t*h*i*s*
++* * * * * * * * * * * * *s*e*s*s*i*o*n*'*s* *s*e*t*t*i*n*g*s*.*
++* * * * * * * * *"*"*"*
++* * * * * * * * *c*o*o*k*i*e*s* *=* *r*e*q*u*e*s*t*.*c*o*o*k*i*e*s* *o*r* *{*}*
++*
++* * * * * * * * *#* *B*o*o*t*s*t*r*a*p* *C*o*o*k*i*e*J*a*r*.*
++* * * * * * * * *i*f* *n*o*t* *i*s*i*n*s*t*a*n*c*e*(*c*o*o*k*i*e*s*,* *c*o*o*k*i*e*l*i*b*.*C*o*o*k*i*e*J*a*r*):*
++* * * * * * * * * * * * *c*o*o*k*i*e*s* *=* *c*o*o*k*i*e*j*a*r*_*f*r*o*m*_*d*i*c*t*(*c*o*o*k*i*e*s*)*
++*
++* * * * * * * * *#* *M*e*r*g*e* *w*i*t*h* *s*e*s*s*i*o*n* *c*o*o*k*i*e*s*
++* * * * * * * * *m*e*r*g*e*d*_*c*o*o*k*i*e*s* *=* *m*e*r*g*e*_*c*o*o*k*i*e*s*(*
++* * * * * * * * * * * * *m*e*r*g*e*_*c*o*o*k*i*e*s*(*R*e*q*u*e*s*t*s*C*o*o*k*i*e*J*a*r*(*)*,* *s*e*l*f*.*c*o*o*k*i*e*s*)*,* *c*o*o*k*i*e*s*)*
++*
++*
++* * * * * * * * *#* *S*e*t* *e*n*v*i*r*o*n*m*e*n*t*'*s* *b*a*s*i*c* *a*u*t*h*e*n*t*i*c*a*t*i*o*n* *i*f* *n*o*t* *e*x*p*l*i*c*i*t*l*y* *s*e*t*.*
++* * * * * * * * *a*u*t*h* *=* *r*e*q*u*e*s*t*.*a*u*t*h*
++* * * * * * * * *i*f* *s*e*l*f*.*t*r*u*s*t*_*e*n*v* *a*n*d* *n*o*t* *a*u*t*h* *a*n*d* *n*o*t* *s*e*l*f*.*a*u*t*h:*
++* * * * * * * * * * * * *a*u*t*h* *=* *g*e*t*_*n*e*t*r*c*_*a*u*t*h*(*r*e*q*u*e*s*t*.*u*r*l*)*
++*
++* * * * * * * * *p* *=* *P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*(*)*
++* * * * * * * * *p*.*p*r*e*p*a*r*e*(*
++* * * * * * * * * * * * *m*e*t*h*o*d*=*r*e*q*u*e*s*t*.*m*e*t*h*o*d*.*u*p*p*e*r*(*)*,*
++* * * * * * * * * * * * *u*r*l*=*r*e*q*u*e*s*t*.*u*r*l*,*
++* * * * * * * * * * * * *f*i*l*e*s*=*r*e*q*u*e*s*t*.*f*i*l*e*s*,*
++* * * * * * * * * * * * *d*a*t*a*=*r*e*q*u*e*s*t*.*d*a*t*a*,*
++* * * * * * * * * * * * *j*s*o*n*=*r*e*q*u*e*s*t*.*j*s*o*n*,*
++* * * * * * * * * * * * *h*e*a*d*e*r*s*=*m*e*r*g*e*_*s*e*t*t*i*n*g*(*r*e*q*u*e*s*t*.*h*e*a*d*e*r*s*,* *s*e*l*f*.*h*e*a*d*e*r*s*,* *d*i*c*t*_*c*l*a*s*s*=*C*a*s*e*I*n*s*e*n*s*i*t*i*v*e*D*i*c*t*)*,*
++* * * * * * * * * * * * *p*a*r*a*m*s*=*m*e*r*g*e*_*s*e*t*t*i*n*g*(*r*e*q*u*e*s*t*.*p*a*r*a*m*s*,* *s*e*l*f*.*p*a*r*a*m*s*)*,*
++* * * * * * * * * * * * *a*u*t*h*=*m*e*r*g*e*_*s*e*t*t*i*n*g*(*a*u*t*h*,* *s*e*l*f*.*a*u*t*h*)*,*
++* * * * * * * * * * * * *c*o*o*k*i*e*s*=*m*e*r*g*e*d*_*c*o*o*k*i*e*s*,*
++* * * * * * * * * * * * *h*o*o*k*s*=*m*e*r*g*e*_*h*o*o*k*s*(*r*e*q*u*e*s*t*.*h*o*o*k*s*,* *s*e*l*f*.*h*o*o*k*s*)*,*
++* * * * * * * * *)*
++* * * * * * * * *r*e*t*u*r*n* *p*
++*
++* * * * *d*e*f* *r*e*q*u*e*s*t*(*s*e*l*f*,* *m*e*t*h*o*d*,* *u*r*l*,*
++* * * * * * * * *p*a*r*a*m*s*=*N*o*n*e*,*
++* * * * * * * * *d*a*t*a*=*N*o*n*e*,*
++* * * * * * * * *h*e*a*d*e*r*s*=*N*o*n*e*,*
++* * * * * * * * *c*o*o*k*i*e*s*=*N*o*n*e*,*
++* * * * * * * * *f*i*l*e*s*=*N*o*n*e*,*
++* * * * * * * * *a*u*t*h*=*N*o*n*e*,*
++* * * * * * * * *t*i*m*e*o*u*t*=*N*o*n*e*,*
++* * * * * * * * *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*=*T*r*u*e*,*
++* * * * * * * * *p*r*o*x*i*e*s*=*N*o*n*e*,*
++* * * * * * * * *h*o*o*k*s*=*N*o*n*e*,*
++* * * * * * * * *s*t*r*e*a*m*=*N*o*n*e*,*
++* * * * * * * * *v*e*r*i*f*y*=*N*o*n*e*,*
++* * * * * * * * *c*e*r*t*=*N*o*n*e*,*
++* * * * * * * * *j*s*o*n*=*N*o*n*e*):*
++* * * * * * * * *"*"*"*C*o*n*s*t*r*u*c*t*s* *a* :*c*l*a*s*s:*`*R*e*q*u*e*s*t* *<*R*e*q*u*e*s*t*>*`*,* *p*r*e*p*a*r*e*s* *i*t* *a*n*d* *s*e*n*d*s* *i*t*.*
++* * * * * * * * *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e* *<*R*e*s*p*o*n*s*e*>*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *m*e*t*h*o*d:* *m*e*t*h*o*d* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *p*a*r*a*m*s:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y* *o*r* *b*y*t*e*s* *t*o* *b*e* *s*e*n*t* *i*n* *t*h*e* *q*u*e*r*y*
++* * * * * * * * * * * * *s*t*r*i*n*g* *f*o*r* *t*h*e* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *d*a*t*a:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y* *o*r* *b*y*t*e*s* *t*o* *s*e*n*d* *i*n* *t*h*e* *b*o*d*y* *o*f* *t*h*e*
++* * * * * * * * * * * * :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *j*s*o*n:* *(*o*p*t*i*o*n*a*l*)* *j*s*o*n* *t*o* *s*e*n*d* *i*n* *t*h*e* *b*o*d*y* *o*f* *t*h*e*
++* * * * * * * * * * * * :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *h*e*a*d*e*r*s:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y* *o*f* *H*T*T*P* *H*e*a*d*e*r*s* *t*o* *s*e*n*d* *w*i*t*h* *t*h*e*
++* * * * * * * * * * * * :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *c*o*o*k*i*e*s:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t* *o*r* *C*o*o*k*i*e*J*a*r* *o*b*j*e*c*t* *t*o* *s*e*n*d* *w*i*t*h* *t*h*e*
++* * * * * * * * * * * * :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *f*i*l*e*s:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y* *o*f* *`*`*'*f*i*l*e*n*a*m*e*':* *f*i*l*e*-*l*i*k*e*-*o*b*j*e*c*t*s*`*`*
++* * * * * * * * * * * * *f*o*r* *m*u*l*t*i*p*a*r*t* *e*n*c*o*d*i*n*g* *u*p*l*o*a*d*.*
++* * * * * * * * :*p*a*r*a*m* *a*u*t*h:* *(*o*p*t*i*o*n*a*l*)* *A*u*t*h* *t*u*p*l*e* *o*r* *c*a*l*l*a*b*l*e* *t*o* *e*n*a*b*l*e*
++* * * * * * * * * * * * *B*a*s*i*c*/*D*i*g*e*s*t*/*C*u*s*t*o*m* *H*T*T*P* *A*u*t*h*.*
++* * * * * * * * :*p*a*r*a*m* *t*i*m*e*o*u*t:* *(*o*p*t*i*o*n*a*l*)* *H*o*w* *l*o*n*g* *t*o* *w*a*i*t* *f*o*r* *t*h*e* *s*e*r*v*e*r* *t*o* *s*e*n*d*
++* * * * * * * * * * * * *d*a*t*a* *b*e*f*o*r*e* *g*i*v*i*n*g* *u*p*,* *a*s* *a* *f*l*o*a*t*,* *o*r* *a* *(*`*c*o*n*n*e*c*t* *t*i*m*e*o*u*t*,* *r*e*a*d*
++* * * * * * * * * * * * *t*i*m*e*o*u*t* *<*u*s*e*r*/*a*d*v*a*n*c*e*d*.*h*t*m*l*#*t*i*m*e*o*u*t*s*>*`*_*)* *t*u*p*l*e*.*
++* * * * * * * * :*t*y*p*e* *t*i*m*e*o*u*t:* *f*l*o*a*t* *o*r* *t*u*p*l*e*
++* * * * * * * * :*p*a*r*a*m* *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s:* *(*o*p*t*i*o*n*a*l*)* *S*e*t* *t*o* *T*r*u*e* *b*y* *d*e*f*a*u*l*t*.*
++* * * * * * * * :*t*y*p*e* *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s:* *b*o*o*l*
++* * * * * * * * :*p*a*r*a*m* *p*r*o*x*i*e*s:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y* *m*a*p*p*i*n*g* *p*r*o*t*o*c*o*l* *t*o* *t*h*e* *U*R*L* *o*f*
++* * * * * * * * * * * * *t*h*e* *p*r*o*x*y*.*
++* * * * * * * * :*p*a*r*a*m* *s*t*r*e*a*m:* *(*o*p*t*i*o*n*a*l*)* *w*h*e*t*h*e*r* *t*o* *i*m*m*e*d*i*a*t*e*l*y* *d*o*w*n*l*o*a*d* *t*h*e* *r*e*s*p*o*n*s*e*
++* * * * * * * * * * * * *c*o*n*t*e*n*t*.* *D*e*f*a*u*l*t*s* *t*o* *`*`*F*a*l*s*e*`*`*.*
++* * * * * * * * :*p*a*r*a*m* *v*e*r*i*f*y:* *(*o*p*t*i*o*n*a*l*)* *i*f* *`*`*T*r*u*e*`*`*,* *t*h*e* *S*S*L* *c*e*r*t* *w*i*l*l* *b*e* *v*e*r*i*f*i*e*d*.*
++* * * * * * * * * * * * *A* *C*A*_*B*U*N*D*L*E* *p*a*t*h* *c*a*n* *a*l*s*o* *b*e* *p*r*o*v*i*d*e*d*.*
++* * * * * * * * :*p*a*r*a*m* *c*e*r*t:* *(*o*p*t*i*o*n*a*l*)* *i*f* *S*t*r*i*n*g*,* *p*a*t*h* *t*o* *s*s*l* *c*l*i*e*n*t* *c*e*r*t* *f*i*l*e* *(*.*p*e*m*)*.*
++* * * * * * * * * * * * *I*f* *T*u*p*l*e*,* *(*'*c*e*r*t*'*,* *'*k*e*y*'*)* *p*a*i*r*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *m*e*t*h*o*d* *=* *m*e*t*h*o*d*.*d*e*c*o*d*e*(*)* *i*f* *i*s*i*n*s*t*a*n*c*e*(*m*e*t*h*o*d*,* *b*y*t*e*s*)* *e*l*s*e* *b*u*i*l*t*i*n*_*s*t*r*(*m*e*t*h*o*d*)*
++*
++* * * * * * * * *#* *C*r*e*a*t*e* *t*h*e* *R*e*q*u*e*s*t*.*
++* * * * * * * * *r*e*q* *=* *R*e*q*u*e*s*t*(*
++* * * * * * * * * * * * *m*e*t*h*o*d* *=* *m*e*t*h*o*d*.*u*p*p*e*r*(*)*,*
++* * * * * * * * * * * * *u*r*l* *=* *u*r*l*,*
++* * * * * * * * * * * * *h*e*a*d*e*r*s* *=* *h*e*a*d*e*r*s*,*
++* * * * * * * * * * * * *f*i*l*e*s* *=* *f*i*l*e*s*,*
++* * * * * * * * * * * * *d*a*t*a* *=* *d*a*t*a* *o*r* *{*}*,*
++* * * * * * * * * * * * *j*s*o*n* *=* *j*s*o*n*,*
++* * * * * * * * * * * * *p*a*r*a*m*s* *=* *p*a*r*a*m*s* *o*r* *{*}*,*
++* * * * * * * * * * * * *a*u*t*h* *=* *a*u*t*h*,*
++* * * * * * * * * * * * *c*o*o*k*i*e*s* *=* *c*o*o*k*i*e*s*,*
++* * * * * * * * * * * * *h*o*o*k*s* *=* *h*o*o*k*s*,*
++* * * * * * * * *)*
++* * * * * * * * *p*r*e*p* *=* *s*e*l*f*.*p*r*e*p*a*r*e*_*r*e*q*u*e*s*t*(*r*e*q*)*
++*
++* * * * * * * * *p*r*o*x*i*e*s* *=* *p*r*o*x*i*e*s* *o*r* *{*}*
++*
++* * * * * * * * *s*e*t*t*i*n*g*s* *=* *s*e*l*f*.*m*e*r*g*e*_*e*n*v*i*r*o*n*m*e*n*t*_*s*e*t*t*i*n*g*s*(*
++* * * * * * * * * * * * *p*r*e*p*.*u*r*l*,* *p*r*o*x*i*e*s*,* *s*t*r*e*a*m*,* *v*e*r*i*f*y*,* *c*e*r*t*
++* * * * * * * * *)*
++*
++* * * * * * * * *#* *S*e*n*d* *t*h*e* *r*e*q*u*e*s*t*.*
++* * * * * * * * *s*e*n*d*_*k*w*a*r*g*s* *=* *{*
++* * * * * * * * * * * * *'*t*i*m*e*o*u*t*':* *t*i*m*e*o*u*t*,*
++* * * * * * * * * * * * *'*a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*':* *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*,*
++* * * * * * * * *}*
++* * * * * * * * *s*e*n*d*_*k*w*a*r*g*s*.*u*p*d*a*t*e*(*s*e*t*t*i*n*g*s*)*
++* * * * * * * * *r*e*s*p* *=* *s*e*l*f*.*s*e*n*d*(*p*r*e*p*,* *****s*e*n*d*_*k*w*a*r*g*s*)*
++*
++* * * * * * * * *r*e*t*u*r*n* *r*e*s*p*
++*
++* * * * *d*e*f* *g*e*t*(*s*e*l*f*,* *u*r*l*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *G*E*T* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*'*,* *T*r*u*e*)*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*G*E*T*'*,* *u*r*l*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *o*p*t*i*o*n*s*(*s*e*l*f*,* *u*r*l*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *O*P*T*I*O*N*S* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*'*,* *T*r*u*e*)*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*O*P*T*I*O*N*S*'*,* *u*r*l*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *h*e*a*d*(*s*e*l*f*,* *u*r*l*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *H*E*A*D* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*'*,* *F*a*l*s*e*)*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*H*E*A*D*'*,* *u*r*l*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *p*o*s*t*(*s*e*l*f*,* *u*r*l*,* *d*a*t*a*=*N*o*n*e*,* *j*s*o*n*=*N*o*n*e*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *P*O*S*T* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *d*a*t*a:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y*,* *b*y*t*e*s*,* *o*r* *f*i*l*e*-*l*i*k*e* *o*b*j*e*c*t* *t*o* *s*e*n*d* *i*n* *t*h*e* *b*o*d*y* *o*f* *t*h*e* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *j*s*o*n:* *(*o*p*t*i*o*n*a*l*)* *j*s*o*n* *t*o* *s*e*n*d* *i*n* *t*h*e* *b*o*d*y* *o*f* *t*h*e* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*P*O*S*T*'*,* *u*r*l*,* *d*a*t*a*=*d*a*t*a*,* *j*s*o*n*=*j*s*o*n*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *p*u*t*(*s*e*l*f*,* *u*r*l*,* *d*a*t*a*=*N*o*n*e*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *P*U*T* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *d*a*t*a:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y*,* *b*y*t*e*s*,* *o*r* *f*i*l*e*-*l*i*k*e* *o*b*j*e*c*t* *t*o* *s*e*n*d* *i*n* *t*h*e* *b*o*d*y* *o*f* *t*h*e* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*P*U*T*'*,* *u*r*l*,* *d*a*t*a*=*d*a*t*a*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *p*a*t*c*h*(*s*e*l*f*,* *u*r*l*,* *d*a*t*a*=*N*o*n*e*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *P*A*T*C*H* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *d*a*t*a:* *(*o*p*t*i*o*n*a*l*)* *D*i*c*t*i*o*n*a*r*y*,* *b*y*t*e*s*,* *o*r* *f*i*l*e*-*l*i*k*e* *o*b*j*e*c*t* *t*o* *s*e*n*d* *i*n* *t*h*e* *b*o*d*y* *o*f* *t*h*e* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*P*A*T*C*H*'*,* *u*r*l*,* * *d*a*t*a*=*d*a*t*a*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *d*e*l*e*t*e*(*s*e*l*f*,* *u*r*l*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d*s* *a* *D*E*L*E*T*E* *r*e*q*u*e*s*t*.* *R*e*t*u*r*n*s* :*c*l*a*s*s:*`*R*e*s*p*o*n*s*e*`* *o*b*j*e*c*t*.*
++*
++* * * * * * * * :*p*a*r*a*m* *u*r*l:* *U*R*L* *f*o*r* *t*h*e* *n*e*w* :*c*l*a*s*s:*`*R*e*q*u*e*s*t*`* *o*b*j*e*c*t*.*
++* * * * * * * * :*p*a*r*a*m* *******k*w*a*r*g*s:* *O*p*t*i*o*n*a*l* *a*r*g*u*m*e*n*t*s* *t*h*a*t* *`*`*r*e*q*u*e*s*t*`*`* *t*a*k*e*s*.*
++* * * * * * * * *"*"*"*
++*
++* * * * * * * * *r*e*t*u*r*n* *s*e*l*f*.*r*e*q*u*e*s*t*(*'*D*E*L*E*T*E*'*,* *u*r*l*,* *****k*w*a*r*g*s*)*
++*
++* * * * *d*e*f* *s*e*n*d*(*s*e*l*f*,* *r*e*q*u*e*s*t*,* *****k*w*a*r*g*s*):*
++* * * * * * * * *"*"*"*S*e*n*d* *a* *g*i*v*e*n* *P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*.*"*"*"*
++* * * * * * * * *#* *S*e*t* *d*e*f*a*u*l*t*s* *t*h*a*t* *t*h*e* *h*o*o*k*s* *c*a*n* *u*t*i*l*i*z*e* *t*o* *e*n*s*u*r*e* *t*h*e*y* *a*l*w*a*y*s* *h*a*v*e*
++* * * * * * * * *#* *t*h*e* *c*o*r*r*e*c*t* *p*a*r*a*m*e*t*e*r*s* *t*o* *r*e*p*r*o*d*u*c*e* *t*h*e* *p*r*e*v*i*o*u*s* *r*e*q*u*e*s*t*.*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*s*t*r*e*a*m*'*,* *s*e*l*f*.*s*t*r*e*a*m*)*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*v*e*r*i*f*y*'*,* *s*e*l*f*.*v*e*r*i*f*y*)*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*c*e*r*t*'*,* *s*e*l*f*.*c*e*r*t*)*
++* * * * * * * * *k*w*a*r*g*s*.*s*e*t*d*e*f*a*u*l*t*(*'*p*r*o*x*i*e*s*'*,* *s*e*l*f*.*p*r*o*x*i*e*s*)*
++*
++* * * * * * * * *#* *I*t*'*s* *p*o*s*s*i*b*l*e* *t*h*a*t* *u*s*e*r*s* *m*i*g*h*t* *a*c*c*i*d*e*n*t*a*l*l*y* *s*e*n*d* *a* *R*e*q*u*e*s*t* *o*b*j*e*c*t*.*
++* * * * * * * * *#* *G*u*a*r*d* *a*g*a*i*n*s*t* *t*h*a*t* *s*p*e*c*i*f*i*c* *f*a*i*l*u*r*e* *c*a*s*e*.*
++* * * * * * * * *i*f* *n*o*t* *i*s*i*n*s*t*a*n*c*e*(*r*e*q*u*e*s*t*,* *P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*):*
++* * * * * * * * * * * * *r*a*i*s*e* *V*a*l*u*e*E*r*r*o*r*(*'*Y*o*u* *c*a*n* *o*n*l*y* *s*e*n*d* *P*r*e*p*a*r*e*d*R*e*q*u*e*s*t*s*.*'*)*
++*
++* * * * * * * * *c*h*e*c*k*e*d*_*u*r*l*s* *=* *s*e*t*(*)*
++* * * * * * * * *w*h*i*l*e* *r*e*q*u*e*s*t*.*u*r*l* *i*n* *s*e*l*f*.*r*e*d*i*r*e*c*t*_*c*a*c*h*e:*
++* * * * * * * * * * * * *c*h*e*c*k*e*d*_*u*r*l*s*.*a*d*d*(*r*e*q*u*e*s*t*.*u*r*l*)*
++* * * * * * * * * * * * *n*e*w*_*u*r*l* *=* *s*e*l*f*.*r*e*d*i*r*e*c*t*_*c*a*c*h*e*.*g*e*t*(*r*e*q*u*e*s*t*.*u*r*l*)*
++* * * * * * * * * * * * *i*f* *n*e*w*_*u*r*l* *i*n* *c*h*e*c*k*e*d*_*u*r*l*s:*
++* * * * * * * * * * * * * * * * *b*r*e*a*k*
++* * * * * * * * * * * * *r*e*q*u*e*s*t*.*u*r*l* *=* *n*e*w*_*u*r*l*
++*
++* * * * * * * * *#* *S*e*t* *u*p* *v*a*r*i*a*b*l*e*s* *n*e*e*d*e*d* *f*o*r* *r*e*s*o*l*v*e*_*r*e*d*i*r*e*c*t*s* *a*n*d* *d*i*s*p*a*t*c*h*i*n*g* *o*f* *h*o*o*k*s*
++* * * * * * * * *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s* *=* *k*w*a*r*g*s*.*p*o*p*(*'*a*l*l*o*w*_*r*e*d*i*r*e*c*t*s*'*,* *T*r*u*e*)*
++* * * * * * * * *s*t*r*e*a*m* *=* *k*w*a*r*g*s*.*g*e*t*(*'*s*t*r*e*a*m*'*)*
++* * * * * * * * *t*i*m*e*o*u*t* *=* *k*w*a*r*g*s*.*g*e*t*(*'*t*i*m*e*o*u*t*'*)*
++* * * * * * * * *v*e*r*i*f*y* *=* *k*w*a*r*g*s*.*g*e*t*(*'*v*e*r*i*f*y*'*)*
++* * * * * * * * *c*e*r*t* *=* *k*w*a*r*g*s*.*g*e*t*(*'*c*e*r*t*'*)*
++* * * * * * * * *p*r*o*x*i*e*s* *=* *k*w*a*r*g*s*.*g*e*t*(*'*p*r*o*x*i*e*s*'*)*
++* * * * * * * * *h*o*o*k*s* *=* *r*e*q*u*e*s*t*.*h*o*o*k*s*
++*
++* * * * * * * * *#* *G*e*t* *t*h*e* *a*p*p*r*o*p*r*i*a*t*e* *a*d*a*p*t*e*r* *t*o* *u*s*e*
++* * * * * * * * *a*d*a*p*t*e*r* *=* *s*e*l*f*.*g*e*t*_*a*d*a*p*t*e*r*(*u*r*l*=*r*e*q*u*e*s*t*.*u*r*l*)*
++*
++* * * * * * * * *#* *S*t*a*r*t* *t*i*m*e* *(*a*p*p*r*o*x*i*m*a*t*e*l*y*)* *o*f* *t*h*e* *r*e*q*u*e*s*t*
++* * * * * * * * *s*t*a*r*t* *=* *d*a*t*e*t*i*m*e*.*u*t*c*n*o*w*(*)*
++*
++* * * * * * * * *#* *S*e*n*d* *t*h*e* *r*e*q*u*e*s*t*
++* * * * * * * * *r* *=* *a*d*a*p*t*e*r*.*s*e*n*d*(*r*e*q*u*e*s*t*,* *****k*w*a*r*g*s*)*
++*
++* * * * * * * * *#* *T*o*t*a*l* *e*l*a*p*s*e*d* *t*i*m*e* *o*f* *t*h*e* *r*e*q*u*e*s*t* *(*a*p*p*r*o*x*i*m*a*t*e*l*y*)*
++* * * * * * * * *r*.*e*l*a*p*s*e*d* *=* *d*a*t*e*t*i*m*e*.*u*t*c*n*o*w*(*)* *-* *s*t*a*r*t*
++*
++* * * * * * * * *#* *R*e*s*p*o*n*s*e* *m*a*n*i*p*u*l*a*t*i*o*n* *h*o*o*k*s*
++* * * * * * * * *r* *=* *d*i*s*p*a*t*c*h*_*h*o*o*k*(*'*r*e*s*p*o*n*s*e*'*,* *h*o*o*k*s*,* *r*,* *****k*w*a*r*g*s*)*
++*
++* * * * * * * * *#* *P*e*r*s*i*s*t* *c*o*o*k*i*e*s*
++* * * * * * * * *i*f* *r*.*h*i*s*t*o*r*y:*
++*
++* * * * * * * * * * * * *#* *I*f* *t*h*e* *h*o*o*k*s* *c*r*e*a*t*e* *h*i*s*t*o*r*y* *t*h*e*n* *w*e* *w*a*n*t* *t*h*o*s*e* *c*o*o*k*i*e*s* *t*o*o*
++* * * * * * * * * * * * *f*o*r* *r*e*s*p* *i*n* *r*.*h*i*s*t*o*r*y:*
++* * * * * * * * * * * * * * * * *e*x*t*r*a*c*t*_*c*o*o*k*i*e*s*_*t*o*_*j*a*r*(*s*e*l*f*.*c*o*o*k*i*e*s*,* *r*e*s*p*.*r*e*q*u*e*s*t*,* *r*e*s*p*.*r*a*w*)*
++*
++* * * * * * * * *e*x*t*r*a*c*t*_*c*o*o*k*i*e*s*_*t*o*_*j*a*r*(*s*e*l*f*.*c*o*o*k*i*e*s*,* *r*e*q*u*e*s*t*,* *r*.*r*a*w*)*
++*
++* * * * * * * * *#* *R*e*d*i*r*e*c*t* *r*e*s*o*l*v*i*n*g* *g*e*n*e*r*a*t*o*r*.*
++* * * * * * * * *g*e*n* *=* *s*e*l*f*.*r*e*s*o*l*v*e*_*r*e*d*i*r*e*c*t*s*(*r*,* *r*e*q*u*e*s*t*,*
++* * * * * * * * * * * * *s*t*r*e*a*m*=*s*t*r*e*a*m*,*
++* * * * * * * * * * * * *t*i*m*e*o*u*t*=*t*i*m*e*o*u*t*,*
++* * * * * * * * * * * * *v*e*r*i*f*y*=*v*e*r*i*f*y*,*
++* * * * * * * * * * * * *c*e*r*t*=*c*e*r*t*,*
++* * * * * * * * * * * * *p*r*o*x*i*e*s*=*p*r*o*x*i*e*s*)*
++*
++* * * * * * * * *#* *R*e*s*o*l*v*e* *r*e*d*i*r*e*c*t*s* *i*f* *a*l*l*o*w*e*d*.*
++* * * * * * * * *h*i*s*t*o*r*y* *=* *[*r*e*s*p* *f*o*r* *r*e*s*p* *i*n* *g*e*n*]* *i*f* *a*l*l*o*w*_*r*e*d*i*r*e*c*t*s* *e*l*s*e* *[*]*
++*
++* * * * * * * * *#* *S*h*u*f*f*l*e* *t*h*i*n*g*s* *a*r*o*u*n*d* *i*f* *t*h*e*r*e*'*s* *h*i*s*t*o*r*y*.*
++* * * * * * * * *i*f* *h*i*s*t*o*r*y:*
++* * * * * * * * * * * * *#* *I*n*s*e*r*t* *t*h*e* *f*i*r*s*t* *(*o*r*i*g*i*n*a*l*)* *r*e*q*u*e*s*t* *a*t* *t*h*e* *s*t*a*r*t*
++* * * * * * * * * * * * *h*i*s*t*o*r*y*.*i*n*s*e*r*t*(*0*,* *r*)*
++* * * * * * * * * * * * *#* *G*e*t* *t*h*e* *l*a*s*t* *r*e*q*u*e*s*t* *m*a*d*e*
++* * * * * * * * * * * * *r* *=* *h*i*s*t*o*r*y*.*p*o*p*(*)*
++* * * * * * * * * * * * *r*.*h*i*s*t*o*r*y* *=* *h*i*s*t*o*r*y*
++*
++* * * * * * * * *i*f* *n*o*t* *s*t*r*e*a*m:*
++* * * * * * * * * * * * *r*.*c*o*n*t*e*n*t*
++*
++* * * * * * * * *r*e*t*u*r*n* *r*
++*
++* * * * *d*e*f* *m*e*r*g*e*_*e*n*v*i*r*o*n*m*e*n*t*_*s*e*t*t*i*n*g*s*(*s*e*l*f*,* *u*r*l*,* *p*r*o*x*i*e*s*,* *s*t*r*e*a*m*,* *v*e*r*i*f*y*,* *c*e*r*t*):*
++* * * * * * * * *"*"*"*C*h*e*c*k* *t*h*e* *e*n*v*i*r*o*n*m*e*n*t* *a*n*d* *m*e*r*g*e* *i*t* *w*i*t*h* *s*o*m*e* *s*e*t*t*i*n*g*s*.*"*"*"*
++* * * * * * * * *#* *G*a*t*h*e*r* *c*l*u*e*s* *f*r*o*m* *t*h*e* *s*u*r*r*o*u*n*d*i*n*g* *e*n*v*i*r*o*n*m*e*n*t*.*
++* * * * * * * * *i*f* *s*e*l*f*.*t*r*u*s*t*_*e*n*v:*
++* * * * * * * * * * * * *#* *S*e*t* *e*n*v*i*r*o*n*m*e*n*t*'*s* *p*r*o*x*i*e*s*.*
++* * * * * * * * * * * * *e*n*v*_*p*r*o*x*i*e*s* *=* *g*e*t*_*e*n*v*i*r*o*n*_*p*r*o*x*i*e*s*(*u*r*l*)* *o*r* *{*}*
++* * * * * * * * * * * * *f*o*r* *(*k*,* *v*)* *i*n* *e*n*v*_*p*r*o*x*i*e*s*.*i*t*e*m*s*(*):*
++* * * * * * * * * * * * * * * * *p*r*o*x*i*e*s*.*s*e*t*d*e*f*a*u*l*t*(*k*,* *v*)*
++*
++* * * * * * * * * * * * *#* *L*o*o*k* *f*o*r* *r*e*q*u*e*s*t*s* *e*n*v*i*r*o*n*m*e*n*t* *c*o*n*f*i*g*u*r*a*t*i*o*n* *a*n*d* *b*e* *c*o*m*p*a*t*i*b*l*e*
++* * * * * * * * * * * * *#* *w*i*t*h* *c*U*R*L*.*
++* * * * * * * * * * * * *i*f* *v*e*r*i*f*y* *i*s* *T*r*u*e* *o*r* *v*e*r*i*f*y* *i*s* *N*o*n*e:*
++* * * * * * * * * * * * * * * * *v*e*r*i*f*y* *=* *(*o*s*.*e*n*v*i*r*o*n*.*g*e*t*(*'*R*E*Q*U*E*S*T*S*_*C*A*_*B*U*N*D*L*E*'*)* *o*r*
++* * * * * * * * * * * * * * * * * * * * * * * * * * *o*s*.*e*n*v*i*r*o*n*.*g*e*t*(*'*C*U*R*L*_*C*A*_*B*U*N*D*L*E*'*)*)*
++*
++* * * * * * * * *#* *M*e*r*g*e* *a*l*l* *t*h*e* *k*w*a*r*g*s*.*
++* * * * * * * * *p*r*o*x*i*e*s* *=* *m*e*r*g*e*_*s*e*t*t*i*n*g*(*p*r*o*x*i*e*s*,* *s*e*l*f*.*p*r*o*x*i*e*s*)*
++* * * * * * * * *s*t*r*e*a*m* *=* *m*e*r*g*e*_*s*e*t*t*i*n*g*(*s*t*r*e*a*m*,* *s*e*l*f*.*s*t*r*e*a*m*)*
++* * * * * * * * *v*e*r*i*f*y* *=* *m*e*r*g*e*_*s*e*t*t*i*n*g*(*v*e*r*i*f*y*,* *s*e*l*f*.*v*e*r*i*f*y*)*
++* * * * * * * * *c*e*r*t* *=* *m*e*r*g*e*_*s*e*t*t*i*n*g*(*c*e*r*t*,* *s*e*l*f*.*c*e*r*t*)*
++*
++* * * * * * * * *r*e*t*u*r*n* *{*'*v*e*r*i*f*y*':* *v*e*r*i*f*y*,* *'*p*r*o*x*i*e*s*':* *p*r*o*x*i*e*s*,* *'*s*t*r*e*a*m*':* *s*t*r*e*a*m*,*
++* * * * * * * * * * * * * * * * *'*c*e*r*t*':* *c*e*r*t*}*
++*
++* * * * *d*e*f* *g*e*t*_*a*d*a*p*t*e*r*(*s*e*l*f*,* *u*r*l*):*
++* * * * * * * * *"*"*"*R*e*t*u*r*n*s* *t*h*e* *a*p*p*r*o*p*r*i*a*t*e* *c*o*n*n*n*e*c*t*i*o*n* *a*d*a*p*t*e*r* *f*o*r* *t*h*e* *g*i*v*e*n* *U*R*L*.*"*"*"*
++* * * * * * * * *f*o*r* *(*p*r*e*f*i*x*,* *a*d*a*p*t*e*r*)* *i*n* *s*e*l*f*.*a*d*a*p*t*e*r*s*.*i*t*e*m*s*(*):*
++*
++* * * * * * * * * * * * *i*f* *u*r*l*.*l*o*w*e*r*(*)*.*s*t*a*r*t*s*w*i*t*h*(*p*r*e*f*i*x*):*
++* * * * * * * * * * * * * * * * *r*e*t*u*r*n* *a*d*a*p*t*e*r*
++*
++* * * * * * * * *#* *N*o*t*h*i*n*g* *m*a*t*c*h*e*s* :*-*/*
++* * * * * * * * *r*a*i*s*e* *I*n*v*a*l*i*d*S*c*h*e*m*a*(*"*N*o* *c*o*n*n*e*c*t*i*o*n* *a*d*a*p*t*e*r*s* *w*e*r*e* *f*o*u*n*d* *f*o*r* *'*%*s*'*"* *%* *u*r*l*)*
++*
++* * * * *d*e*f* *c*l*o*s*e*(*s*e*l*f*):*
++* * * * * * * * *"*"*"*C*l*o*s*e*s* *a*l*l* *a*d*a*p*t*e*r*s* *a*n*d* *a*s* *s*u*c*h* *t*h*e* *s*e*s*s*i*o*n*"*"*"*
++* * * * * * * * *f*o*r* *v* *i*n* *s*e*l*f*.*a*d*a*p*t*e*r*s*.*v*a*l*u*e*s*(*):*
++* * * * * * * * * * * * *v*.*c*l*o*s*e*(*)*
++*
++* * * * *d*e*f* *m*o*u*n*t*(*s*e*l*f*,* *p*r*e*f*i*x*,* *a*d*a*p*t*e*r*):*
++* * * * * * * * *"*"*"*R*e*g*i*s*t*e*r*s* *a* *c*o*n*n*e*c*t*i*o*n* *a*d*a*p*t*e*r* *t*o* *a* *p*r*e*f*i*x*.*
++*
++* * * * * * * * *A*d*a*p*t*e*r*s* *a*r*e* *s*o*r*t*e*d* *i*n* *d*e*s*c*e*n*d*i*n*g* *o*r*d*e*r* *b*y* *k*e*y* *l*e*n*g*t*h*.*"*"*"*
++*
++* * * * * * * * *s*e*l*f*.*a*d*a*p*t*e*r*s*[*p*r*e*f*i*x*]* *=* *a*d*a*p*t*e*r*
++* * * * * * * * *k*e*y*s*_*t*o*_*m*o*v*e* *=* *[*k* *f*o*r* *k* *i*n* *s*e*l*f*.*a*d*a*p*t*e*r*s* *i*f* *l*e*n*(*k*)* *<* *l*e*n*(*p*r*e*f*i*x*)*]*
++*
++* * * * * * * * *f*o*r* *k*e*y* *i*n* *k*e*y*s*_*t*o*_*m*o*v*e:*
++* * * * * * * * * * * * *s*e*l*f*.*a*d*a*p*t*e*r*s*[*k*e*y*]* *=* *s*e*l*f*.*a*d*a*p*t*e*r*s*.*p*o*p*(*k*e*y*)*
++*
++* * * * *d*e*f* *_*_*g*e*t*s*t*a*t*e*_*_*(*s*e*l*f*):*
++* * * * * * * * *r*e*t*u*r*n* *d*i*c*t*(*(*a*t*t*r*,* *g*e*t*a*t*t*r*(*s*e*l*f*,* *a*t*t*r*,* *N*o*n*e*)*)* *f*o*r* *a*t*t*r* *i*n* *s*e*l*f*.*_*_*a*t*t*r*s*_*_*)*
++*
++* * * * *d*e*f* *_*_*s*e*t*s*t*a*t*e*_*_*(*s*e*l*f*,* *s*t*a*t*e*):*
++* * * * * * * * *f*o*r* *a*t*t*r*,* *v*a*l*u*e* *i*n* *s*t*a*t*e*.*i*t*e*m*s*(*):*
++* * * * * * * * * * * * *s*e*t*a*t*t*r*(*s*e*l*f*,* *a*t*t*r*,* *v*a*l*u*e*)*
++*
++*
++*d*e*f* *s*e*s*s*i*o*n*(*):*
++* * * * *"*"*"*R*e*t*u*r*n*s* *a* :*c*l*a*s*s:*`*S*e*s*s*i*o*n*`* *f*o*r* *c*o*n*t*e*x*t*-*m*a*n*a*g*e*m*e*n*t*.*"*"*"*
++*
++* * * * *r*e*t*u*r*n* *S*e*s*s*i*o*n*(*)*

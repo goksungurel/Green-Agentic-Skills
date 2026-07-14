@@ -1,0 +1,96 @@
+diff --git a/astropy/io/ascii/qdp.py b/astropy/io/ascii/qdp.py
+index 83a4f004aa..eeb6258d2d 100644
+--- a/astropy/io/ascii/qdp.py
++++ b/astropy/io/ascii/qdp.py
+@@ -40,17 +40,17 @@ def _line_type(line, delimiter=None):
+     'comment'
+     >>> _line_type(" 21345.45")
+     'data,1'
+-    >>> _line_type(" 21345.45 1.53e-3 1e-3 .04 NO nan")
++    >>> _line_type(" 21345.45 1.53e-3 1e-3 .04 new nan")
+     'data,6'
+-    >>> _line_type(" 21345.45,1.53e-3,1e-3,.04,NO,nan", delimiter=',')
++    >>> _line_type(" 21345.45,1.53e-3,1e-3,.04,new,nan", delimiter=',')
+     'data,6'
+     >>> _line_type(" 21345.45 ! a comment to disturb")
+     'data,1'
+-    >>> _line_type("NO NO NO NO NO")
++    >>> _line_type("new new new new new")
+     'new'
+-    >>> _line_type("NO,NO,NO,NO,NO", delimiter=',')
++    >>> _line_type("new,new,new,new,new", delimiter=',')
+     'new'
+-    >>> _line_type("N O N NOON OON O")
++    >>> _line_type("N O N newON OON O")
+     Traceback (most recent call last):
+         ...
+     ValueError: Unrecognized QDP line...
+@@ -65,8 +65,8 @@ def _line_type(line, delimiter=None):
+     sep = delimiter
+     if delimiter is None:
+         sep = r"\s+"
+-    _new_re = rf"NO({sep}NO)+"
+-    _data_re = rf"({_decimal_re}|NO|[-+]?nan)({sep}({_decimal_re}|NO|[-+]?nan))*)"
++    _new_re = rf"new({sep}new)+"
++    _data_re = rf"({_decimal_re}|new|[-+]?nan)({sep}({_decimal_re}|new|[-+]?nan))*)"
+     _type_re = rf"^\s*((?P<command>{_command_re})|(?P<new>{_new_re})|(?P<data>{_data_re})?\s*(\!(?P<comment>.*))?\s*$"
+     _line_type_re = re.compile(_type_re)
+     line = line.strip()
+@@ -306,7 +306,7 @@ def _get_tables_from_qdp_file(qdp_file, input_colnames=None, delimiter=None):
+ 
+             values = []
+             for v in line.split(delimiter):
+-                if v == "NO":
++                if v == "new":
+                     values.append(np.ma.masked)
+                 else:
+                     # Understand if number is int or float
+@@ -477,7 +477,7 @@ def _write_table_qdp(table, filename=None, err_specs=None):
+             if not np.ma.is_masked(val):
+                 rep = str(val)
+             else:
+-                rep = "NO"
++                rep = "new"
+             values.append(rep)
+         print(" ".join(values), file=fobj)
+ 
+@@ -515,7 +515,7 @@ class QDPData(basic.BasicData):
+     """
+ 
+     splitter_class = QDPSplitter
+-    fill_values = [(core.masked, "NO")]
++    fill_values = [(core.masked, "new")]
+     comment = "!"
+     write_comment = None
+ 
+@@ -533,17 +533,17 @@ class QDP(basic.Basic):
+         !a a(pos) a(neg) b be c d
+         53000.5   0.25  -0.5   1  1.5  3.5 2
+         54000.5   1.25  -1.5   2  2.5  4.5 3
+-        NO NO NO NO NO
++        new new new new new
+         ! Table 1 comment
+         !a a(pos) a(neg) b be c d
+-        54000.5   2.25  -2.5   NO  3.5  5.5 5
++        54000.5   2.25  -2.5   new  3.5  5.5 5
+         55000.5   3.25  -3.5   4  4.5  6.5 nan
+ 
+     The input table above contains some initial comments, the error commands,
+     then two tables.
+     This file format can contain multiple tables, separated by a line full
+-    of ``NO``s. Comments are exclamation marks, and missing values are single
+-    ``NO`` entries. The delimiter is usually whitespace, more rarely a comma.
++    of ``new``s. Comments are exclamation marks, and missing values are single
++    ``new`` entries. The delimiter is usually whitespace, more rarely a comma.
+     The QDP format differentiates between data and error columns. The table
+     above has commands::
+ 
+@@ -585,7 +585,7 @@ class QDP(basic.Basic):
+         >                   |
+         >                   v
+         >!     MJD       Err (pos)       Err(neg)        Rate            Error
+-        >53000.123456   2.378e-05     -2.378472e-05     NO             0.212439
++        >53000.123456   2.378e-05     -2.378472e-05     new             0.212439
+ 
+     These readers and writer classes will strive to understand which of the
+     comments belong to all the tables, and which ones to each single table.

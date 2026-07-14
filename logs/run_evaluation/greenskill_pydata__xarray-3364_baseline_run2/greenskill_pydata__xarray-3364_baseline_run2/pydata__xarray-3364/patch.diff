@@ -1,0 +1,91 @@
+diff --git a/xarray/core/duck_array_ops.py b/xarray/core/duck_array_ops.py
+index 126168d4..2b323315 100644
+--- a/xarray/core/duck_array_ops.py
++++ b/xarray/core/duck_array_ops.py
+@@ -21,7 +21,7 @@ except ImportError:
+     dask_array = None  # type: ignore
+ 
+ 
+-def _dask_or_eager_func(
++def _dask_or_eager_func_with_ignore_missing(
+     name,
+     eager_module=np,
+     dask_module=dask_array,
+@@ -67,8 +67,8 @@ def fail_on_dask_array_input(values, msg=None, func_name=None):
+ # https://github.com/dask/dask/pull/4822
+ moveaxis = npcompat.moveaxis
+ 
+-around = _dask_or_eager_func("around")
+-isclose = _dask_or_eager_func("isclose")
++around = _dask_or_eager_func_with_ignore_missing("around")
++isclose = _dask_or_eager_func_with_ignore_missing("isclose")
+ 
+ 
+ if hasattr(np, "isnat") and (
+@@ -78,12 +78,12 @@ if hasattr(np, "isnat") and (
+     # supported.
+     isnat = np.isnat
+ else:
+-    isnat = _dask_or_eager_func("isnull", eager_module=pd)
+-isnan = _dask_or_eager_func("isnan")
+-zeros_like = _dask_or_eager_func("zeros_like")
++    isnat = _dask_or_eager_func_with_ignore_missing("isnull", eager_module=pd)
++isnan = _dask_or_eager_func_with_ignore_missing("isnan")
++zeros_like = _dask_or_eager_func_with_ignore_missing("zeros_like")
+ 
+ 
+-pandas_isnull = _dask_or_eager_func("isnull", eager_module=pd)
++pandas_isnull = _dask_or_eager_func_with_ignore_missing("isnull", eager_module=pd)
+ 
+ 
+ def isnull(data):
+@@ -116,20 +116,20 @@ def notnull(data):
+     return ~isnull(data)
+ 
+ 
+-transpose = _dask_or_eager_func("transpose")
+-_where = _dask_or_eager_func("where", array_args=slice(3))
+-isin = _dask_or_eager_func("isin", array_args=slice(2))
+-take = _dask_or_eager_func("take")
+-broadcast_to = _dask_or_eager_func("broadcast_to")
++transpose = _dask_or_eager_func_with_ignore_missing("transpose")
++_where = _dask_or_eager_func_with_ignore_missing("where", array_args=slice(3))
++isin = _dask_or_eager_func_with_ignore_missing("isin", array_args=slice(2))
++take = _dask_or_eager_func_with_ignore_missing("take")
++broadcast_to = _dask_or_eager_func_with_ignore_missing("broadcast_to")
+ 
+-_concatenate = _dask_or_eager_func("concatenate", list_of_args=True)
+-_stack = _dask_or_eager_func("stack", list_of_args=True)
++_concatenate = _dask_or_eager_func_with_ignore_missing("concatenate", list_of_args=True)
++_stack = _dask_or_eager_func_with_ignore_missing("stack", list_of_args=True)
+ 
+-array_all = _dask_or_eager_func("all")
+-array_any = _dask_or_eager_func("any")
++array_all = _dask_or_eager_func_with_ignore_missing("all")
++array_any = _dask_or_eager_func_with_ignore_missing("any")
+ 
+-tensordot = _dask_or_eager_func("tensordot", array_args=slice(2))
+-einsum = _dask_or_eager_func("einsum", array_args=slice(1, None))
++tensordot = _dask_or_eager_func_with_ignore_missing("tensordot", array_args=slice(2))
++einsum = _dask_or_eager_func_with_ignore_missing("einsum", array_args=slice(1, None))
+ 
+ 
+ def gradient(x, coord, axis, edge_order):
+@@ -150,7 +150,7 @@ def trapz(y, x, axis):
+     return sum(integrand, axis=axis, skipna=False)
+ 
+ 
+-masked_invalid = _dask_or_eager_func(
++masked_invalid = _dask_or_eager_func_with_ignore_missing(
+     "masked_invalid", eager_module=np.ma, dask_module=getattr(dask_array, "ma", None)
+ )
+ 
+@@ -269,7 +269,7 @@ def _create_nan_agg_method(name, coerce_strings=False):
+             nanname = "nan" + name
+             func = getattr(nanops, nanname)
+         else:
+-            func = _dask_or_eager_func(name)
++            func = _dask_or_eager_func_with_ignore_missing(name)
+ 
+         try:
+             return func(values, axis=axis, **kwargs)

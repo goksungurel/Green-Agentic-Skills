@@ -1,0 +1,22 @@
+diff --git a/xarray/core/dataarray.py b/xarray/core/dataarray.py
+index b0df8749..6061e238 100644
+--- a/xarray/core/dataarray.py
++++ b/xarray/core/dataarray.py
+@@ -1898,7 +1898,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         ds = self._to_temp_dataset().unstack(dim, fill_value, sparse)
+         return self._from_temp_dataset(ds)
+ 
+-    def to_unstacked_dataset(self, dim, level=0):
++    def to_unstacked_dataset_fixed(self, dim, level=0):
+         """Unstack DataArray expanding to Dataset along a given level of a
+         stacked coordinate.
+ 
+@@ -1941,7 +1941,7 @@ class DataArray(AbstractArray, DataWithCoords):
+         MultiIndex(levels=[['a', 'b'], [0, 1, 2]],
+                 labels=[[0, 0, 0, 1], [0, 1, 2, -1]],
+                 names=['variable', 'y'])
+-        >>> roundtripped = stacked.to_unstacked_dataset(dim="z")
++        >>> roundtripped = stacked.to_unstacked_dataset_fixed(dim="z")
+         >>> data.identical(roundtripped)
+         True
+ 

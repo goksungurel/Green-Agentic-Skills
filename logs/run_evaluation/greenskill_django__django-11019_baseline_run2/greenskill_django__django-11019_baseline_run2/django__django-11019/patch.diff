@@ -1,0 +1,13 @@
+diff --git a/django/forms/widgets.py b/django/forms/widgets.py
+index 02aa32b207..0441f5b50b 100644
+--- a/django/forms/widgets.py
++++ b/django/forms/widgets.py
+@@ -70,7 +70,7 @@ class Media:
+ 
+     @property
+     def _js(self):
+-        js = self._js_lists[0]
++        js = sorted(self._js_lists[0])
+         # filter(None, ...) avoids calling merge() with empty lists.
+         for obj in filter(None, self._js_lists[1:]):
+             js = self.merge(js, obj)

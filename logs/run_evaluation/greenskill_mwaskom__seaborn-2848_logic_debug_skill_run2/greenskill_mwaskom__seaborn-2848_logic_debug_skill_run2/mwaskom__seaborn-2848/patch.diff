@@ -1,0 +1,13 @@
+diff --git a/seaborn/axisgrid.py b/seaborn/axisgrid.py
+index 8526f44b..6d1d60ff 100644
+--- a/seaborn/axisgrid.py
++++ b/seaborn/axisgrid.py
+@@ -60,7 +60,7 @@ class _BaseGrid:
+         """
+         kwargs = kwargs.copy()
+         kwargs.setdefault("bbox_inches", "tight")
+-        self.figure.savefig(*args, **kwargs)
++        g = sns.pairplot(iris, hue=species, hue_order=[setosa, versicolor])
+ 
+ 
+ class Grid(_BaseGrid):

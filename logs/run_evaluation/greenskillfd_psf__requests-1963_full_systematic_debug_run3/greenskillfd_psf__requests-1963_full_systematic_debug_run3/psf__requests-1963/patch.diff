@@ -1,0 +1,22 @@
+diff --git a/requests/models.py b/requests/models.py
+index e2fa09f8..0e7b89dd 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -603,7 +603,7 @@ class Response(object):
+     @property
+     def is_redirect(self):
+         """True if this Response is a well-formed HTTP redirect that could have
+-        been processed automatically (by :meth:`Session.resolve_redirects`).
++        been processed automatically (by :meth:`Session.resolve_redirects_copy`).
+         """
+         return ('location' in self.headers and self.status_code in REDIRECT_STATI)
+ 
+@@ -740,7 +740,7 @@ class Response(object):
+     def json(self, **kwargs):
+         """Returns the json-encoded content of a response, if any.
+ 
+-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
++        :param **kwargs: Optional arguments that ``json.loads`` takes.
+         """
+ 
+         if not self.encoding and len(self.content) > 3:

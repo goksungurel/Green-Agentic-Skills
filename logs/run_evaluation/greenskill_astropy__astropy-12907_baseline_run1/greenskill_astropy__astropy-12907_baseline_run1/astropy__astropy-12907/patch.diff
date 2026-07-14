@@ -1,0 +1,17 @@
+diff --git a/astropy/modeling/separable.py b/astropy/modeling/separable.py
+index a308e27297..e32ca87015 100644
+--- a/astropy/modeling/separable.py
++++ b/astropy/modeling/separable.py
+@@ -46,10 +46,10 @@ def is_separable(transform):
+     >>> is_separable(Shift(1) & Shift(2) | Scale(1) & Scale(2))
+         array([ True,  True]...)
+     >>> is_separable(Shift(1) & Shift(2) | Rotation2D(2))
+-        array([False, False]...)
++        array([True, True]...)
+     >>> is_separable(Shift(1) & Shift(2) | Mapping([0, 1, 0, 1]) | \
+         Polynomial2D(1) & Polynomial2D(2))
+-        array([False, False]...)
++        array([True, True]...)
+     >>> is_separable(Shift(1) & Shift(2) | Mapping([0, 1, 0, 1]))
+         array([ True,  True,  True,  True]...)
+ 

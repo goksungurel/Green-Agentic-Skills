@@ -1,0 +1,664 @@
+diff --git a/tests/expressions_case/tests.py b/tests/expressions_case/tests.py
+index 94731491e0..84870381cc 100644
+--- a/tests/expressions_case/tests.py
++++ b/tests/expressions_case/tests.py
+@@ -67,7 +67,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=2, then=Value('two')),
+                 default=Value('other'),
+                 output_field=models.CharField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 'one'), (2, 'two'), (3, 'other'), (2, 'two'), (3, 'other'), (3, 'other'), (4, 'other')],
+             transform=attrgetter('integer', 'test')
+         )
+@@ -78,7 +78,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=1, then=1),
+                 When(integer=2, then=2),
+                 output_field=models.IntegerField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, None), (2, 2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'test')
+         )
+@@ -89,7 +89,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=1, then=F('integer') + 1),
+                 When(integer=2, then=F('integer') + 3),
+                 default='integer',
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 2), (2, 5), (3, 3), (2, 5), (3, 3), (3, 3), (4, 4)],
+             transform=attrgetter('integer', 'f_test')
+         )
+@@ -100,7 +100,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer2=F('integer'), then=Value('equal')),
+                 When(integer2=F('integer') + 1, then=Value('+1')),
+                 output_field=models.CharField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 'equal'), (2, '+1'), (3, '+1'), (2, 'equal'), (3, '+1'), (3, 'equal'), (4, '+1')],
+             transform=attrgetter('integer', 'f_test')
+         )
+@@ -111,7 +111,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=1, then=F('o2o_rel__integer') + 1),
+                 When(integer=2, then=F('o2o_rel__integer') + 3),
+                 default='o2o_rel__integer',
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 2), (2, 5), (3, 3), (2, 5), (3, 3), (3, 3), (4, 1)],
+             transform=attrgetter('integer', 'join_test')
+         )
+@@ -122,7 +122,7 @@ class CaseExpressionTests(TestCase):
+             CaseTestModel.objects.only('pk', 'integer').annotate(in_test=Sum(Case(
+                 When(fk_rel__in=fk_rels, then=F('fk_rel__integer')),
+                 default=Value(0),
+-            ))).order_by('pk'),
++            ))).order_by_oneline_oneline('pk'),
+             [(1, 0), (2, 0), (3, 0), (2, 0), (3, 0), (3, 0), (4, 5)],
+             transform=attrgetter('integer', 'in_test')
+         )
+@@ -134,7 +134,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer2=F('o2o_rel__integer') + 1, then=Value('+1')),
+                 default=Value('other'),
+                 output_field=models.CharField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 'equal'), (2, '+1'), (3, '+1'), (2, 'equal'), (3, '+1'), (3, 'equal'), (4, 'other')],
+             transform=attrgetter('integer', 'join_test')
+         )
+@@ -147,7 +147,7 @@ class CaseExpressionTests(TestCase):
+                 When(o2o_rel__integer=3, then=Value('three')),
+                 default=Value('other'),
+                 output_field=models.CharField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 'one'), (2, 'two'), (3, 'three'), (2, 'two'), (3, 'three'), (3, 'three'), (4, 'one')],
+             transform=attrgetter('integer', 'join_test')
+         )
+@@ -163,7 +163,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer=2, then='f_plus_3'),
+                     default='integer',
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 2), (2, 5), (3, 3), (2, 5), (3, 3), (3, 3), (4, 4)],
+             transform=attrgetter('integer', 'f_test')
+         )
+@@ -178,7 +178,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer2=F('f_plus_1'), then=Value('+1')),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 'equal'), (2, '+1'), (3, '+1'), (2, 'equal'), (3, '+1'), (3, 'equal'), (4, '+1')],
+             transform=attrgetter('integer', 'f_test')
+         )
+@@ -195,7 +195,7 @@ class CaseExpressionTests(TestCase):
+                     default=Value('other'),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 'negative one'), (2, 'zero'), (3, 'one'), (2, 'zero'), (3, 'one'), (3, 'one'), (4, 'other')],
+             transform=attrgetter('integer', 'test')
+         )
+@@ -210,7 +210,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer=2, then='min'),
+                     When(integer=3, then='max'),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, None, 1, 1), (2, 2, 2, 3), (3, 4, 3, 4), (2, 2, 2, 3), (3, 4, 3, 4), (3, 4, 3, 4), (4, None, 5, 5)],
+             transform=itemgetter('integer', 'test', 'min', 'max')
+         )
+@@ -226,7 +226,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer2=F('max'), then=Value('max')),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 1, 'min'), (2, 3, 'max'), (3, 4, 'max'), (2, 2, 'min'), (3, 4, 'max'), (3, 3, 'min'), (4, 5, 'min')],
+             transform=itemgetter('integer', 'integer2', 'test')
+         )
+@@ -242,7 +242,7 @@ class CaseExpressionTests(TestCase):
+                     default=Value(''),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 1, ''), (2, 3, 'max = 3'), (3, 4, 'max = 4'), (2, 3, 'max = 3'),
+              (3, 4, 'max = 4'), (3, 4, 'max = 4'), (4, 5, '')],
+             transform=itemgetter('integer', 'max', 'test')
+@@ -255,12 +255,12 @@ class CaseExpressionTests(TestCase):
+                 When(integer=2, then=Value('two')),
+                 default=Value('other'),
+                 output_field=models.CharField(),
+-            )).exclude(test='other').order_by('pk'),
++            )).exclude(test='other').order_by_oneline_oneline('pk'),
+             [(1, 'one'), (2, 'two'), (2, 'two')],
+             transform=attrgetter('integer', 'test')
+         )
+ 
+-    def test_annotate_values_not_in_order_by(self):
++    def test_annotate_values_not_in_order_by_oneline_oneline(self):
+         self.assertEqual(
+             list(CaseTestModel.objects.annotate(test=Case(
+                 When(integer=1, then=Value('one')),
+@@ -268,7 +268,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=3, then=Value('three')),
+                 default=Value('other'),
+                 output_field=models.CharField(),
+-            )).order_by('test').values_list('integer', flat=True)),
++            )).order_by_oneline_oneline('test').values_list('integer', flat=True)),
+             [1, 4, 3, 3, 3, 2, 2]
+         )
+ 
+@@ -291,7 +291,7 @@ class CaseExpressionTests(TestCase):
+                     default=3,
+                     output_field=models.IntegerField(),
+                 ) + 1,
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 3), (2, 2), (3, 4), (2, 2), (3, 4), (3, 4), (4, 4)],
+             transform=attrgetter('integer', 'test')
+         )
+@@ -305,7 +305,7 @@ class CaseExpressionTests(TestCase):
+                         When(integer=4, then='pk'),
+                         output_field=models.IntegerField(),
+                     ),
+-                ).values('test')).order_by('pk'),
++                ).values('test')).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, 3), (4, 5)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -317,8 +317,8 @@ class CaseExpressionTests(TestCase):
+             output_field=models.CharField(),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.annotate(somecase=SOME_CASE).order_by('pk'),
+-            CaseTestModel.objects.annotate(somecase=SOME_CASE).order_by('pk').values_list('pk', 'somecase'),
++            CaseTestModel.objects.annotate(somecase=SOME_CASE).order_by_oneline_oneline('pk'),
++            CaseTestModel.objects.annotate(somecase=SOME_CASE).order_by_oneline_oneline('pk').values_list('pk', 'somecase'),
+             lambda x: (x.pk, x.somecase)
+         )
+ 
+@@ -377,7 +377,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=3, then=4),
+                 default=1,
+                 output_field=models.IntegerField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 3), (3, 4), (3, 4)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -388,7 +388,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=2, then=3),
+                 When(integer=3, then=4),
+                 output_field=models.IntegerField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(2, 3), (3, 4), (3, 4)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -399,7 +399,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=2, then=F('integer') + 1),
+                 When(integer=3, then=F('integer')),
+                 default='integer',
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 3), (3, 3)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -410,7 +410,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer2=F('integer'), then=Value('2')),
+                 When(integer2=F('integer') + 1, then=Value('3')),
+                 output_field=models.CharField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(3, 4, '3'), (2, 2, '2'), (3, 4, '3')],
+             transform=attrgetter('integer', 'integer2', 'string')
+         )
+@@ -421,7 +421,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer=2, then=F('o2o_rel__integer') + 1),
+                 When(integer=3, then=F('o2o_rel__integer')),
+                 default='o2o_rel__integer',
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 3), (3, 3)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -432,7 +432,7 @@ class CaseExpressionTests(TestCase):
+                 When(integer2=F('o2o_rel__integer') + 1, then=2),
+                 When(integer2=F('o2o_rel__integer'), then=3),
+                 output_field=models.IntegerField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(2, 3), (3, 3)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -444,7 +444,7 @@ class CaseExpressionTests(TestCase):
+                 When(o2o_rel__integer=2, then=3),
+                 When(o2o_rel__integer=3, then=4),
+                 output_field=models.IntegerField(),
+-            )).order_by('pk'),
++            )).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 3), (3, 4), (3, 4)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -459,7 +459,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer=2, then='f_plus_1'),
+                     When(integer=3, then='f'),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(2, 3), (3, 3)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -474,7 +474,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer2=F('f_plus_1'), then=3),
+                     output_field=models.IntegerField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(3, 4), (2, 2), (3, 4)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -490,7 +490,7 @@ class CaseExpressionTests(TestCase):
+                     default=1,
+                     output_field=models.IntegerField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 3), (3, 4), (3, 4)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -505,7 +505,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer=2, then='min'),
+                     When(integer=3, then='max'),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(3, 4, 3, 4), (2, 2, 2, 3), (3, 4, 3, 4)],
+             transform=itemgetter('integer', 'integer2', 'min', 'max')
+         )
+@@ -520,7 +520,7 @@ class CaseExpressionTests(TestCase):
+                     When(integer2=F('min'), then=2),
+                     When(integer2=F('max'), then=3),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(3, 4, 3, 4), (2, 2, 2, 3), (3, 4, 3, 4)],
+             transform=itemgetter('integer', 'integer2', 'min', 'max')
+         )
+@@ -534,7 +534,7 @@ class CaseExpressionTests(TestCase):
+                     When(max=3, then=2),
+                     When(max=4, then=3),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [(2, 3, 3), (3, 4, 4), (2, 2, 3), (3, 4, 4), (3, 3, 4)],
+             transform=itemgetter('integer', 'integer2', 'max')
+         )
+@@ -548,7 +548,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 'one'), (2, 'two'), (3, 'other'), (2, 'two'), (3, 'other'), (3, 'other'), (4, 'other')],
+             transform=attrgetter('integer', 'string')
+         )
+@@ -561,7 +561,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, None), (2, 2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'integer2')
+         )
+@@ -575,7 +575,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [('1', 2), ('2', 5), ('3', 3), ('2', 5), ('3', 3), ('3', 3), ('4', 4)],
+             transform=attrgetter('string', 'integer')
+         )
+@@ -588,7 +588,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 'equal'), (2, '+1'), (3, '+1'), (2, 'equal'), (3, '+1'), (3, 'equal'), (4, '+1')],
+             transform=attrgetter('integer', 'string')
+         )
+@@ -623,7 +623,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, None), (2, 2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'big_integer')
+         )
+@@ -637,7 +637,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, b'one'), (2, b'two'), (3, b''), (2, b'two'), (3, b''), (3, b''), (4, b'')],
+             transform=lambda o: (o.integer, bytes(o.binary))
+         )
+@@ -651,7 +651,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, True), (2, True), (3, False), (2, True), (3, False), (3, False), (4, False)],
+             transform=attrgetter('integer', 'boolean')
+         )
+@@ -664,7 +664,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [
+                 (1, date(2015, 1, 1)), (2, date(2015, 1, 2)), (3, None), (2, date(2015, 1, 2)),
+                 (3, None), (3, None), (4, None)
+@@ -680,7 +680,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [
+                 (1, datetime(2015, 1, 1)), (2, datetime(2015, 1, 2)), (3, None), (2, datetime(2015, 1, 2)),
+                 (3, None), (3, None), (4, None)
+@@ -696,7 +696,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [
+                 (1, Decimal('1.1')),
+                 (2, Decimal('2.2')),
+@@ -719,7 +719,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, timedelta(1)), (2, timedelta(2)), (3, None), (2, timedelta(2)), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'duration')
+         )
+@@ -733,7 +733,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '1@example.com'), (2, '2@example.com'), (3, ''), (2, '2@example.com'), (3, ''), (3, ''), (4, '')],
+             transform=attrgetter('integer', 'email')
+         )
+@@ -746,7 +746,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '~/1'), (2, '~/2'), (3, ''), (2, '~/2'), (3, ''), (3, ''), (4, '')],
+             transform=lambda o: (o.integer, str(o.file))
+         )
+@@ -760,7 +760,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '~/1'), (2, '~/2'), (3, ''), (2, '~/2'), (3, ''), (3, ''), (4, '')],
+             transform=attrgetter('integer', 'file_path')
+         )
+@@ -773,7 +773,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 1.1), (2, 2.2), (3, None), (2, 2.2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'float')
+         )
+@@ -787,7 +787,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '~/1'), (2, '~/2'), (3, ''), (2, '~/2'), (3, ''), (3, ''), (4, '')],
+             transform=lambda o: (o.integer, str(o.image))
+         )
+@@ -802,7 +802,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '1.1.1.1'), (2, '2.2.2.2'), (3, None), (2, '2.2.2.2'), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'generic_ip_address')
+         )
+@@ -815,7 +815,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, True), (2, False), (3, None), (2, False), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'null_boolean')
+         )
+@@ -828,7 +828,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, True), (2, False), (3, None), (2, False), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'null_boolean_old')
+         )
+@@ -841,7 +841,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, None), (2, 2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'positive_integer')
+         )
+@@ -854,7 +854,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, None), (2, 2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'positive_small_integer')
+         )
+@@ -868,7 +868,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '1'), (2, '2'), (3, ''), (2, '2'), (3, ''), (3, ''), (4, '')],
+             transform=attrgetter('integer', 'slug')
+         )
+@@ -881,7 +881,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, 1), (2, 2), (3, None), (2, 2), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'small_integer')
+         )
+@@ -894,7 +894,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.filter(string__in=['1', '2']).order_by('pk'),
++            CaseTestModel.objects.filter(string__in=['1', '2']).order_by_oneline_oneline('pk'),
+             [(1, '1'), (2, '2'), (2, '2')],
+             transform=attrgetter('integer', 'string')
+         )
+@@ -908,7 +908,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, '1'), (2, '2'), (3, ''), (2, '2'), (3, ''), (3, ''), (4, '')],
+             transform=attrgetter('integer', 'text')
+         )
+@@ -923,7 +923,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, time(1)), (2, time(2)), (3, None), (2, time(2)), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'time')
+         )
+@@ -937,7 +937,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [
+                 (1, 'http://1.example.com/'), (2, 'http://2.example.com/'), (3, ''), (2, 'http://2.example.com/'),
+                 (3, ''), (3, ''), (4, '')
+@@ -961,7 +961,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [
+                 (1, UUID('11111111111111111111111111111111')),
+                 (2, UUID('22222222222222222222222222222222')),
+@@ -984,7 +984,7 @@ class CaseExpressionTests(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            CaseTestModel.objects.all().order_by('pk'),
++            CaseTestModel.objects.all().order_by_oneline_oneline('pk'),
+             [(1, obj1.pk), (2, obj2.pk), (3, None), (2, obj2.pk), (3, None), (3, None), (4, None)],
+             transform=attrgetter('integer', 'fk_id')
+         )
+@@ -998,7 +998,7 @@ class CaseExpressionTests(TestCase):
+                     default=Value('equal to 2'),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [
+                 (1, 'less than 2'), (2, 'equal to 2'), (3, 'greater than 2'), (2, 'equal to 2'), (3, 'greater than 2'),
+                 (3, 'greater than 2'), (4, 'greater than 2')
+@@ -1014,7 +1014,7 @@ class CaseExpressionTests(TestCase):
+                     default=Value('default'),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [
+                 (1, 1, 'default'), (2, 3, 'when'), (3, 4, 'default'), (2, 2, 'default'), (3, 4, 'default'),
+                 (3, 3, 'default'), (4, 5, 'default')
+@@ -1030,7 +1030,7 @@ class CaseExpressionTests(TestCase):
+                     default=Value('default'),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [
+                 (1, 1, 'default'), (2, 3, 'when'), (3, 4, 'default'), (2, 2, 'when'), (3, 4, 'default'),
+                 (3, 3, 'when'), (4, 5, 'default')
+@@ -1038,26 +1038,26 @@ class CaseExpressionTests(TestCase):
+             transform=attrgetter('integer', 'integer2', 'test')
+         )
+ 
+-    def test_order_by_conditional_implicit(self):
++    def test_order_by_oneline_oneline_conditional_implicit(self):
+         self.assertQuerysetEqual(
+             CaseTestModel.objects.filter(integer__lte=2).annotate(test=Case(
+                 When(integer=1, then=2),
+                 When(integer=2, then=1),
+                 default=3,
+                 output_field=models.IntegerField(),
+-            )).order_by('test', 'pk'),
++            )).order_by_oneline_oneline('test', 'pk'),
+             [(2, 1), (2, 1), (1, 2)],
+             transform=attrgetter('integer', 'test')
+         )
+ 
+-    def test_order_by_conditional_explicit(self):
++    def test_order_by_oneline_oneline_conditional_explicit(self):
+         self.assertQuerysetEqual(
+             CaseTestModel.objects.filter(integer__lte=2).annotate(test=Case(
+                 When(integer=1, then=2),
+                 When(integer=2, then=1),
+                 default=3,
+                 output_field=models.IntegerField(),
+-            )).order_by(F('test').asc(), 'pk'),
++            )).order_by_oneline_oneline(F('test').asc().oneline().oneline(), 'pk'),
+             [(2, 1), (2, 1), (1, 2)],
+             transform=attrgetter('integer', 'test')
+         )
+@@ -1143,7 +1143,7 @@ class CaseExpressionTests(TestCase):
+                 Case(When(~Q(fk_rel__integer=1), then=1), default=2),
+                 output_field=models.IntegerField()
+             ),
+-        ).order_by('integer')
++        ).order_by_oneline_oneline('integer')
+         # The first o has 2 as its fk_rel__integer=1, thus it hits the
+         # default=2 case. The other ones have 2 as the result as they have 2
+         # fk_rel objects, except for integer=4 and integer=10 (created above).
+@@ -1170,7 +1170,7 @@ class CaseExpressionTests(TestCase):
+                 Case(When(~Q(fk_rel__integer=1), then=1), default=2),
+                 output_field=models.IntegerField()
+             ),
+-        ).order_by('integer')
++        ).order_by_oneline_oneline('integer')
+         self.assertEqual(str(qs.query).count(' JOIN '), 1)
+         self.assertQuerysetEqual(
+             qs,
+@@ -1207,7 +1207,7 @@ class CaseDocumentationExamples(TestCase):
+                     default=Value('0%'),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [('Jane Doe', '0%'), ('James Smith', '5%'), ('Jack Black', '10%')],
+             transform=attrgetter('name', 'discount')
+         )
+@@ -1223,7 +1223,7 @@ class CaseDocumentationExamples(TestCase):
+                     default=Value('0%'),
+                     output_field=models.CharField(),
+                 ),
+-            ).order_by('pk'),
++            ).order_by_oneline_oneline('pk'),
+             [('Jane Doe', '5%'), ('James Smith', '0%'), ('Jack Black', '10%')],
+             transform=attrgetter('name', 'discount')
+         )
+@@ -1239,7 +1239,7 @@ class CaseDocumentationExamples(TestCase):
+             ),
+         )
+         self.assertQuerysetEqual(
+-            Client.objects.all().order_by('pk'),
++            Client.objects.all().order_by_oneline_oneline('pk'),
+             [('Jane Doe', 'G'), ('James Smith', 'R'), ('Jack Black', 'P')],
+             transform=attrgetter('name', 'account_type')
+         )

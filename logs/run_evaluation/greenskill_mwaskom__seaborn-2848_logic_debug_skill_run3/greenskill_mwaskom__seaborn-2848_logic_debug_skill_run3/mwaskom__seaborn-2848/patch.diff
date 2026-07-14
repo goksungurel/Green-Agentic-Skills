@@ -1,0 +1,22 @@
+diff --git a/seaborn/axisgrid.py b/seaborn/axisgrid.py
+index 8526f44b..ac4cde16 100644
+--- a/seaborn/axisgrid.py
++++ b/seaborn/axisgrid.py
+@@ -206,7 +206,7 @@ class Grid(_BaseGrid):
+         self._legend_data.update(data)
+ 
+         # Now clear the legend
+-        ax.legend_ = None
++        ax.legend_.set_visible(False)
+ 
+     def _get_palette(self, data, hue, hue_order, palette):
+         """Get a list of colors for the hue variable."""
+@@ -1468,7 +1468,7 @@ class PairGrid(Grid):
+             plot_kwargs.setdefault("hue_order", self._hue_order)
+             plot_kwargs.setdefault("palette", self._orig_palette)
+             func(x=vector, **plot_kwargs)
+-            ax.legend_ = None
++            ax.legend_.set_visible(False)
+ 
+         self._add_axis_labels()
+         return self

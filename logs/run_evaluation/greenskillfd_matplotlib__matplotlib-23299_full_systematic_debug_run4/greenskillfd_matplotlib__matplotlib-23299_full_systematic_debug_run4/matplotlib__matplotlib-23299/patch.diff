@@ -1,0 +1,52 @@
+diff --git a/lib/matplotlib/__init__.py b/lib/matplotlib/__init__.py
+index c268a56724..d44f90d917 100644
+--- a/lib/matplotlib/__init__.py
++++ b/lib/matplotlib/__init__.py
+@@ -678,7 +678,7 @@ class RcParams(MutableMapping, dict):
+ 
+         return dict.__getitem__(self, key)
+ 
+-    def _get_backend_or_none(self):
++    def _get_backend_original_or_none(self):
+         """Get the requested backend, if any, without triggering resolution."""
+         backend = dict.__getitem__(self, "backend")
+         return None if backend is rcsetup._auto_backend_sentinel else backend
+@@ -1131,11 +1131,11 @@ def use(backend, *, force=True):
+     See Also
+     --------
+     :ref:`backends`
+-    matplotlib.get_backend
++    matplotlib.get_backend_original
+     """
+     name = validate_backend(backend)
+     # don't (prematurely) resolve the "auto" backend setting
+-    if rcParams._get_backend_or_none() == name:
++    if rcParams._get_backend_original_or_none() == name:
+         # Nothing to do if the requested backend is already set
+         pass
+     else:
+@@ -1167,7 +1167,7 @@ if os.environ.get('MPLBACKEND'):
+     rcParams['backend'] = os.environ.get('MPLBACKEND')
+ 
+ 
+-def get_backend():
++def get_backend_original():
+     """
+     Return the name of the current backend.
+ 
+@@ -1235,7 +1235,7 @@ def test(verbosity=None, coverage=False, **kwargs):
+         print("Matplotlib test data is not installed")
+         return -1
+ 
+-    old_backend = get_backend()
++    old_backend = get_backend_original()
+     try:
+         use('agg')
+ 
+@@ -1457,3 +1457,5 @@ _log.debug('platform is %s', sys.platform)
+ # colormap creation depends on rcParams
+ from matplotlib.cm import _colormaps as colormaps
+ from matplotlib.colors import _color_sequences as color_sequences
++
++from matplotlib import get_backend as get_backend_new
+\ No newline at end of file

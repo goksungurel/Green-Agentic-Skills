@@ -1,0 +1,22 @@
+diff --git a/lib/matplotlib/__init__.py b/lib/matplotlib/__init__.py
+index c268a56724..a8a94d8167 100644
+--- a/lib/matplotlib/__init__.py
++++ b/lib/matplotlib/__init__.py
+@@ -1167,7 +1167,7 @@ if os.environ.get('MPLBACKEND'):
+     rcParams['backend'] = os.environ.get('MPLBACKEND')
+ 
+ 
+-def get_backend():
++def _get_backend_or_none():
+     """
+     Return the name of the current backend.
+ 
+@@ -1235,7 +1235,7 @@ def test(verbosity=None, coverage=False, **kwargs):
+         print("Matplotlib test data is not installed")
+         return -1
+ 
+-    old_backend = get_backend()
++    old_backend = _get_backend_or_none()
+     try:
+         use('agg')
+ 

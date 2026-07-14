@@ -1,0 +1,26 @@
+diff --git a/xarray/core/dataarray.py b/xarray/core/dataarray.py
+index b0df8749..558816f8 100644
+--- a/xarray/core/dataarray.py
++++ b/xarray/core/dataarray.py
+@@ -1887,8 +1887,8 @@ class DataArray(AbstractArray, DataWithCoords):
+         MultiIndex(levels=[['a', 'b'], [0, 1, 2]],
+                    codes=[[0, 0, 0, 1, 1, 1], [0, 1, 2, 0, 1, 2]],
+                    names=['x', 'y'])
+-        >>> roundtripped = stacked.unstack()
+-        >>> arr.identical(roundtripped)
++        >>> unstacked = stacked.unstack()
++        >>> arr.identical(unstacked)
+         True
+ 
+         See Also
+@@ -1941,8 +1941,8 @@ class DataArray(AbstractArray, DataWithCoords):
+         MultiIndex(levels=[['a', 'b'], [0, 1, 2]],
+                 labels=[[0, 0, 0, 1], [0, 1, 2, -1]],
+                 names=['variable', 'y'])
+-        >>> roundtripped = stacked.to_unstacked_dataset(dim="z")
+-        >>> data.identical(roundtripped)
++        >>> unstacked = stacked.to_unstacked_dataset(dim="z")
++        >>> data.identical(unstacked)
+         True
+ 
+         See Also

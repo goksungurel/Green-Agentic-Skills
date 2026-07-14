@@ -1,0 +1,13 @@
+diff --git a/django/forms/widgets.py b/django/forms/widgets.py
+index 02aa32b207..5b16c0f4da 100644
+--- a/django/forms/widgets.py
++++ b/django/forms/widgets.py
+@@ -152,7 +152,7 @@ class Media:
+     def __add__(self, other):
+         combined = Media()
+         combined._css_lists = self._css_lists + other._css_lists
+-        combined._js_lists = self._js_lists + other._js_lists
++        combined._js_lists = sorted(set(self._js_lists + other._js_lists))
+         return combined
+ 
+ 

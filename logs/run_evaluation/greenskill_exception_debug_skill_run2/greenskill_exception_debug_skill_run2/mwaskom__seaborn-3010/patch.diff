@@ -1,0 +1,22 @@
+diff --git a/seaborn/distributions.py b/seaborn/distributions.py
+index a6f6ab5c..e8308f54 100644
+--- a/seaborn/distributions.py
++++ b/seaborn/distributions.py
+@@ -350,7 +350,7 @@ class _DistributionPlotter(VectorPlotter):
+                     # Convoluted approach needed because numerical failures
+                     # can manifest in a few different ways.
+                     density, support = estimator(observations, weights=weights)
+-            except np.linalg.LinAlgError:
++            except LinAlgError:
+                 singular = True
+ 
+             if singular:
+@@ -1077,7 +1077,7 @@ class _DistributionPlotter(VectorPlotter):
+             try:
+                 if not singular:
+                     density, support = estimator(*observations, weights=weights)
+-            except np.linalg.LinAlgError:
++            except LinAlgError:
+                 # Testing for 0 variance doesn't catch all cases where scipy raises,
+                 # but we can also get a ValueError, so we need this convoluted approach
+                 singular = True

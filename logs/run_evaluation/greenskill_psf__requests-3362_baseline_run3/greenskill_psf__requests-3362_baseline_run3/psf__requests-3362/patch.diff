@@ -1,0 +1,21 @@
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index d2a2714a..cf2ad851 100755
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -970,14 +970,14 @@ class TestRequests:
+         r._content = b'the content'
+         r.encoding = 'ascii'
+ 
+-        chunks = r.iter_content(decode_unicode=True)
++        chunks = r.text
+         assert all(isinstance(chunk, str) for chunk in chunks)
+ 
+         # also for streaming
+         r = requests.Response()
+         r.raw = io.BytesIO(b'the content')
+         r.encoding = 'ascii'
+-        chunks = r.iter_content(decode_unicode=True)
++        chunks = r.text
+         assert all(isinstance(chunk, str) for chunk in chunks)
+ 
+     def test_response_chunk_size_int(self):

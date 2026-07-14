@@ -1,0 +1,19 @@
+diff --git a/seaborn/axisgrid.py b/seaborn/axisgrid.py
+index 8526f44b..ec6951ce 100644
+--- a/seaborn/axisgrid.py
++++ b/seaborn/axisgrid.py
+@@ -43,12 +43,12 @@ class _BaseGrid:
+         # But as the maintanace burden on having this property is minimal,
+         # let's be slow about formally deprecating it. For now just note its deprecation
+         # in the docstring; add a warning in version 0.13, and eventually remove it.
+-        return self._figure
++        return self._figure.copy()
+ 
+     @property
+     def figure(self):
+         """Access the :class:`matplotlib.figure.Figure` object underlying the grid."""
+-        return self._figure
++        return self._figure.copy()
+ 
+     def savefig(self, *args, **kwargs):
+         """

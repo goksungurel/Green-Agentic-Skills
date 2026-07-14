@@ -1,0 +1,13 @@
+diff --git a/tests/test_async.py b/tests/test_async.py
+index 26a91118..fa1894f4 100644
+--- a/tests/test_async.py
++++ b/tests/test_async.py
+@@ -48,7 +48,7 @@ def _async_app():
+         return "", 412
+ 
+     @blueprint.route("/error")
+-    async def bp_error():
++    async def bp_error_new():
+         raise BlueprintError()
+ 
+     app.register_blueprint(blueprint, url_prefix="/bp")

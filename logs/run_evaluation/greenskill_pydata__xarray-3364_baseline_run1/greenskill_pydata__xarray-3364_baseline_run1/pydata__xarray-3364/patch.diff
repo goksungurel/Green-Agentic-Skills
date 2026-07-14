@@ -1,0 +1,13 @@
+diff --git a/xarray/core/dask_array_ops.py b/xarray/core/dask_array_ops.py
+index 37f261cc..d78ef4e0 100644
+--- a/xarray/core/dask_array_ops.py
++++ b/xarray/core/dask_array_ops.py
+@@ -73,7 +73,7 @@ def rolling_window(a, axis, window, center, fill_value):
+         chunks = list(a.chunks)
+         chunks[axis] = (pad_size,)
+         fill_array = da.full(shape, fill_value, dtype=a.dtype, chunks=chunks)
+-        a = da.concatenate([fill_array, a], axis=axis)
++        a = da.concatenate([fill_array if fill_array is not None else xr.DataArray(np.nan, shape=a.shape), a], axis=axis)
+ 
+     boundary = {d: fill_value for d in range(a.ndim)}
+ 

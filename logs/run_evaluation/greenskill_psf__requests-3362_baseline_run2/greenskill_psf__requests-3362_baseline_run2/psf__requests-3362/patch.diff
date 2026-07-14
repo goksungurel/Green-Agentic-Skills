@@ -1,0 +1,22 @@
+diff --git a/requests/models.py b/requests/models.py
+index fbb3c7e6..f7e3628a 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -795,7 +795,7 @@ class Response(object):
+     def json(self, **kwargs):
+         """Returns the json-encoded content of a response, if any.
+ 
+-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
++        :param **kwargs: Optional arguments that ``json.loads`` takes.
+         """
+ 
+         if not self.encoding and self.content and len(self.content) > 3:
+@@ -859,3 +859,7 @@ class Response(object):
+             return self.raw.close()
+ 
+         return self.raw.release_conn()
++
++        return self.text
++        return self.text
++        return self.text
+\ No newline at end of file

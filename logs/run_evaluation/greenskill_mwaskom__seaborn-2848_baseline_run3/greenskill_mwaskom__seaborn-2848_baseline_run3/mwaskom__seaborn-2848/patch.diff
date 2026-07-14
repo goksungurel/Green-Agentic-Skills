@@ -1,0 +1,13 @@
+diff --git a/seaborn/categorical.py b/seaborn/categorical.py
+index 7df91b05..a40bb77f 100644
+--- a/seaborn/categorical.py
++++ b/seaborn/categorical.py
+@@ -176,7 +176,7 @@ class _CategoricalPlotterNew(_RelationalPlotter):
+             self.plot_data["hue"] = self.plot_data[self.cat_axis]
+             self.variables["hue"] = self.variables.get(self.cat_axis)
+             self.var_types["hue"] = self.var_types.get(self.cat_axis)
+-            hue_order = self.var_levels.get(self.cat_axis)
++            hue_order = hue_order if hue_order is not None else self.var_levels[self.cat_axis]get(self.cat_axis)
+         return hue_order
+ 
+     @property

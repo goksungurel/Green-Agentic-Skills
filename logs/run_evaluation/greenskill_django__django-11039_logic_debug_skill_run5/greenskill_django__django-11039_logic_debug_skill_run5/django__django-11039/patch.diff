@@ -1,0 +1,22 @@
+diff --git a/django/db/migrations/executor.py b/django/db/migrations/executor.py
+index 4aaa91ef33..bbf68cf3dc 100644
+--- a/django/db/migrations/executor.py
++++ b/django/db/migrations/executor.py
+@@ -34,7 +34,7 @@ class MigrationExecutor:
+                 for root in self.loader.graph.root_nodes():
+                     if root[0] == target[0]:
+                         for migration in self.loader.graph.backwards_plan(root):
+-                            if migration in applied:
++                            if migration in applied and connection.features.can_rollback_ddl:
+                                 plan.append((self.loader.graph.nodes[migration], True))
+                                 applied.remove(migration)
+             # If the migration is already applied, do backwards mode,
+@@ -51,7 +51,7 @@ class MigrationExecutor:
+                 )
+                 for node in next_in_app:
+                     for migration in self.loader.graph.backwards_plan(node):
+-                        if migration in applied:
++                        if migration in applied and connection.features.can_rollback_ddl:
+                             plan.append((self.loader.graph.nodes[migration], True))
+                             applied.remove(migration)
+             else:

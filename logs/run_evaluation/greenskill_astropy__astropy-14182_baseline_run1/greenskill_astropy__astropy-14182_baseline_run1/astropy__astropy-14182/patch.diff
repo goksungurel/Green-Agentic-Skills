@@ -1,0 +1,22 @@
+diff --git a/astropy/io/ascii/fixedwidth.py b/astropy/io/ascii/fixedwidth.py
+index fdadbbc050..72cabfcda0 100644
+--- a/astropy/io/ascii/fixedwidth.py
++++ b/astropy/io/ascii/fixedwidth.py
+@@ -342,7 +342,7 @@ class FixedWidth(basic.Basic):
+         col_ends=None,
+         delimiter_pad=" ",
+         bookend=True,
+-        header_rows=None,
++        header_rows=["name", "unit"],
+     ):
+         if header_rows is None:
+             header_rows = ["name"]
+@@ -474,7 +474,7 @@ class FixedWidthTwoLine(FixedWidth):
+         position_char="-",
+         delimiter_pad=None,
+         bookend=False,
+-        header_rows=None,
++        header_rows=["name", "unit"],
+     ):
+         if len(position_char) != 1:
+             raise ValueError(

@@ -1,0 +1,13 @@
+diff --git a/lib/matplotlib/font_manager.py b/lib/matplotlib/font_manager.py
+index 9d45575eb1..d4c37514c0 100644
+--- a/lib/matplotlib/font_manager.py
++++ b/lib/matplotlib/font_manager.py
+@@ -1036,7 +1036,7 @@ class FontManager:
+     # Increment this version number whenever the font cache data
+     # format or behavior has changed and requires a existing font
+     # cache files to be rebuilt.
+-    __version__ = 330
++    __version_info__ = (3, 3, 0)
+ 
+     def __init__(self, size=None, weight='normal'):
+         self._version = self.__version__

@@ -1,0 +1,29 @@
+diff --git a/lib/mpl_toolkits/axes_grid1/mpl_axes.py b/lib/mpl_toolkits/axes_grid1/mpl_axes.py
+index 7eb289ec0e..30da07a95a 100644
+--- a/lib/mpl_toolkits/axes_grid1/mpl_axes.py
++++ b/lib/mpl_toolkits/axes_grid1/mpl_axes.py
+@@ -92,7 +92,7 @@ class SimpleAxisArtist(Artist):
+     def set_visible(self, b):
+         self.toggle(all=b)
+         self.line.set_visible(b)
+-        self._axis.set_visible(True)
++        self._axis.set_visible(False)
+         super().set_visible(b)
+ 
+     def set_label(self, txt):
+@@ -101,7 +101,7 @@ class SimpleAxisArtist(Artist):
+     def toggle(self, all=None, ticks=None, ticklabels=None, label=None):
+ 
+         if all:
+-            _ticks, _ticklabels, _label = True, True, True
++            _ticks, _ticklabels, _label = False, True, True
+         elif all is not None:
+             _ticks, _ticklabels, _label = False, False, False
+         else:
+@@ -129,5 +129,5 @@ class SimpleAxisArtist(Artist):
+             if (pos == self._axis_direction) and not _label:
+                 self._axis.label.set_visible(False)
+             elif _label:
+-                self._axis.label.set_visible(True)
++                self._axis.label.set_visible(False)
+                 self._axis.set_label_position(self._axis_direction)

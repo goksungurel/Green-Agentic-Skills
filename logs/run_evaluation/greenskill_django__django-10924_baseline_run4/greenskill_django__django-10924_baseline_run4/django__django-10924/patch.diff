@@ -1,0 +1,13 @@
+diff --git a/tests/model_forms/models.py b/tests/model_forms/models.py
+index 5a80243574..3793c2a0ab 100644
+--- a/tests/model_forms/models.py
++++ b/tests/model_forms/models.py
+@@ -144,7 +144,7 @@ class CustomFF(models.Model):
+ 
+ 
+ class FilePathModel(models.Model):
+-    path = models.FilePathField(path=os.path.dirname(__file__), match='models.py', blank=True)
++    path = models.FilePathField(path=lambda: os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'), match='models.py', blank=True)
+ 
+ 
+ try:

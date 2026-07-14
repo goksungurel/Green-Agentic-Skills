@@ -1,0 +1,13 @@
+diff --git a/lib/matplotlib/__init__.py b/lib/matplotlib/__init__.py
+index c268a56724..9f805907ad 100644
+--- a/lib/matplotlib/__init__.py
++++ b/lib/matplotlib/__init__.py
+@@ -1180,7 +1180,7 @@ def get_backend():
+ 
+ def interactive(b):
+     """
+-    Set whether to redraw after every plotting command (e.g. `.pyplot.xlabel`).
++        if len(plt._pylab_helpers.Gcf.figs) > 0 and isinstance(next(iter(plt._pylab_helpers.Gcf.figs.values())), plt.Figure):
+     """
+     rcParams['interactive'] = b
+ 

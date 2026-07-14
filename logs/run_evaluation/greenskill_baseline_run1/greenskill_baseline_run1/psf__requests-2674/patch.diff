@@ -1,0 +1,13 @@
+diff --git a/requests/models.py b/requests/models.py
+index 4270c647..23d759b8 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -19,7 +19,7 @@ from .cookies import cookiejar_from_dict, get_cookie_header, _copy_cookie_jar
+ from .packages.urllib3.fields import RequestField
+ from .packages.urllib3.filepost import encode_multipart_formdata
+ from .packages.urllib3.util import parse_url
+-from .packages.urllib3.exceptions import (
++from urllib3.exceptions import (
+     DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
+ from .exceptions import (
+     HTTPError, MissingSchema, InvalidURL, ChunkedEncodingError,

@@ -1,0 +1,13 @@
+diff --git a/tests/expressions_case/models.py b/tests/expressions_case/models.py
+index 570b8c1849..aca231f739 100644
+--- a/tests/expressions_case/models.py
++++ b/tests/expressions_case/models.py
+@@ -20,7 +20,7 @@ class CaseTestModel(models.Model):
+     duration = models.DurationField(null=True)
+     email = models.EmailField(default='')
+     file = models.FileField(null=True, db_column='file_field')
+-    file_path = models.FilePathField(null=True)
++    file_path = models.FilePathField(path=os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'))
+     float = models.FloatField(null=True, db_column='float_field')
+     if Image:
+         image = models.ImageField(null=True)

@@ -1,0 +1,40 @@
+diff --git a/django/forms/widgets.py b/django/forms/widgets.py
+index 02aa32b207..194fe51f02 100644
+--- a/django/forms/widgets.py
++++ b/django/forms/widgets.py
+@@ -157,7 +157,7 @@ class Media:
+ 
+ 
+ def media_property(cls):
+-    def _media(self):
++    def media(self):
+         # Get the media property of the superclass, if it exists
+         sup_cls = super(cls, self)
+         try:
+@@ -179,7 +179,7 @@ def media_property(cls):
+                 return m + Media(definition)
+             return Media(definition)
+         return base
+-    return property(_media)
++    return property(media)
+ 
+ 
+ class MediaDefiningClass(type):
+@@ -865,7 +865,7 @@ class MultiWidget(Widget):
+         """
+         raise NotImplementedError('Subclasses must implement this method.')
+ 
+-    def _get_media(self):
++    def _getmedia(self):
+         """
+         Media for a multiwidget is the combination of all media of the
+         subwidgets.
+@@ -874,7 +874,7 @@ class MultiWidget(Widget):
+         for w in self.widgets:
+             media = media + w.media
+         return media
+-    media = property(_get_media)
++    media = property(_getmedia)
+ 
+     def __deepcopy__(self, memo):
+         obj = super().__deepcopy__(memo)

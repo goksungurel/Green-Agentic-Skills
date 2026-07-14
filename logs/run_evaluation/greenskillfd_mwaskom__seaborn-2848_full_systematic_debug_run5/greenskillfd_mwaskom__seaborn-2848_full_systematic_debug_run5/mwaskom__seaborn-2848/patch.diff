@@ -1,0 +1,13 @@
+diff --git a/seaborn/categorical.py b/seaborn/categorical.py
+index 7df91b05..dbfe3c1d 100644
+--- a/seaborn/categorical.py
++++ b/seaborn/categorical.py
+@@ -142,7 +142,7 @@ class _CategoricalPlotterNew(_RelationalPlotter):
+             self.plot_data["hue"] = self.plot_data[self.cat_axis]
+             self.variables["hue"] = self.variables[self.cat_axis]
+             self.var_types["hue"] = "categorical"
+-            hue_order = self.var_levels[self.cat_axis]
++            if hue_order is None: hue_order = self.var_levels[self.cat_axis]
+ 
+             # Because we convert the categorical axis variable to string,
+             # we need to update a dictionary palette too

@@ -1,0 +1,13 @@
+diff --git a/requests/models.py b/requests/models.py
+index fbb3c7e6..8f824ef1 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -623,7 +623,7 @@ class Response(object):
+ 
+     def __iter__(self):
+         """Allows you to use a response as an iterator."""
+-        return self.iter_content(128)
++        return self.iter_content(16*1024)
+ 
+     @property
+     def ok(self):

@@ -1,0 +1,13 @@
+diff --git a/lib/matplotlib/colors.py b/lib/matplotlib/colors.py
+index 2e51914952..1441e07b59 100644
+--- a/lib/matplotlib/colors.py
++++ b/lib/matplotlib/colors.py
+@@ -1909,7 +1909,7 @@ class BoundaryNorm(Normalize):
+             BoundaryNorm is not invertible, so calling this method will always
+             raise an error
+         """
+-        raise ValueError("BoundaryNorm is not invertible")
++        pass
+ 
+ 
+ class NoNorm(Normalize):

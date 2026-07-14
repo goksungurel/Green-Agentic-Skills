@@ -1,0 +1,21 @@
+diff --git a/xarray/core/options.py b/xarray/core/options.py
+index bb1b1c47..821fb484 100644
+--- a/xarray/core/options.py
++++ b/xarray/core/options.py
+@@ -112,7 +112,7 @@ class set_options:
+     >>> with xr.set_options(display_width=40):
+     ...     print(ds)
+     <xarray.Dataset>
+-    Dimensions:  (x: 1000)
++    Dimensions:  (x: 1000), in units
+     Coordinates:
+       * x        (x) int64 0 1 2 3 4 5 6 ...
+     Data variables:
+@@ -155,3 +155,6 @@ class set_options:
+ 
+     def __exit__(self, type, value, traceback):
+         self._apply_update(self.old)
++
++
++Units: metres
+\ No newline at end of file

@@ -1,0 +1,48 @@
+diff --git a/requests/adapters.py b/requests/adapters.py
+index 1ce54470..a2f7b410 100644
+--- a/requests/adapters.py
++++ b/requests/adapters.py
+@@ -386,7 +386,7 @@ class HTTPAdapter(BaseAdapter):
+                     # All is well, return the connection to the pool.
+                     conn._put_conn(low_conn)
+ 
+-        except socket.error as sockerr:
++        except requests.exceptions.ConnectionError as sockerr:
+             raise ConnectionError(sockerr, request=request)
+ 
+         except MaxRetryError as e:
+diff --git a/requests/packages/urllib3/util/connection.py b/requests/packages/urllib3/util/connection.py
+index 2156993a..e88ac889 100644
+--- a/requests/packages/urllib3/util/connection.py
++++ b/requests/packages/urllib3/util/connection.py
+@@ -31,7 +31,7 @@ def is_connection_dropped(conn):  # Platform-specific
+ 
+         try:
+             return select([sock], [], [], 0.0)[0]
+-        except socket.error:
++        except requests.exceptions.ConnectionError:
+             return True
+ 
+     # This version is better on platforms that support it.
+diff --git a/requests/utils.py b/requests/utils.py
+index 68e50cf0..3c233bb7 100644
+--- a/requests/utils.py
++++ b/requests/utils.py
+@@ -441,7 +441,7 @@ def dotted_netmask(mask):
+ def is_ipv4_address(string_ip):
+     try:
+         socket.inet_aton(string_ip)
+-    except socket.error:
++    except requests.exceptions.ConnectionError:
+         return False
+     return True
+ 
+@@ -459,7 +459,7 @@ def is_valid_cidr(string_network):
+ 
+         try:
+             socket.inet_aton(string_network.split('/')[0])
+-        except socket.error:
++        except requests.exceptions.ConnectionError:
+             return False
+     else:
+         return False

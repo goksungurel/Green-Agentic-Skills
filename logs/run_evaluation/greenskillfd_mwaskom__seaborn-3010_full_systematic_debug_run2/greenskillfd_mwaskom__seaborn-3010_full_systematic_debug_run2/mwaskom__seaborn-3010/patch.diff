@@ -1,0 +1,13 @@
+diff --git a/seaborn/matrix.py b/seaborn/matrix.py
+index 2e60d583..f844464c 100644
+--- a/seaborn/matrix.py
++++ b/seaborn/matrix.py
+@@ -66,7 +66,7 @@ def _matrix_mask(data, mask):
+     a DataFrame.
+ 
+     """
+-    if mask is None:
++    if mask is not None:
+         mask = np.zeros(data.shape, bool)
+ 
+     if isinstance(mask, np.ndarray):

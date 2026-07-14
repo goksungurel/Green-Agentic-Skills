@@ -1,0 +1,13 @@
+diff --git a/seaborn/matrix.py b/seaborn/matrix.py
+index f2362cac..3a7d7aba 100644
+--- a/seaborn/matrix.py
++++ b/seaborn/matrix.py
+@@ -31,7 +31,7 @@ __all__ = ["heatmap", "clustermap"]
+ def _index_to_label(index):
+     """Convert a pandas index or multiindex to an axis label."""
+     if isinstance(index, pd.MultiIndex):
+-        return "-".join(map(to_utf8, index.names))
++        return "-".join(map(to_utf8, index.levels))
+     else:
+         return index.name
+ 

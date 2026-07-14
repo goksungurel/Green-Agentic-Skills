@@ -1,0 +1,40 @@
+diff --git a/requests/models.py b/requests/models.py
+index 4270c647..34d93f34 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -20,7 +20,7 @@ from .packages.urllib3.fields import RequestField
+ from .packages.urllib3.filepost import encode_multipart_formdata
+ from .packages.urllib3.util import parse_url
+ from .packages.urllib3.exceptions import (
+-    DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
++    CustomDecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
+ from .exceptions import (
+     HTTPError, MissingSchema, InvalidURL, ChunkedEncodingError,
+     ContentDecodingError, ConnectionError, StreamConsumedError)
+@@ -658,7 +658,7 @@ class Response(object):
+                         yield chunk
+                 except ProtocolError as e:
+                     raise ChunkedEncodingError(e)
+-                except DecodeError as e:
++                except CustomDecodeError as e:
+                     raise ContentDecodingError(e)
+                 except ReadTimeoutError as e:
+                     raise ConnectionError(e)
+@@ -782,7 +782,7 @@ class Response(object):
+     def json(self, **kwargs):
+         """Returns the json-encoded content of a response, if any.
+ 
+-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
++        :param **kwargs: Optional arguments that ``json.loads`` takes.
+         """
+ 
+         if not self.encoding and len(self.content) > 3:
+@@ -796,7 +796,7 @@ class Response(object):
+                     return complexjson.loads(
+                         self.content.decode(encoding), **kwargs
+                     )
+-                except UnicodeDecodeError:
++                except UnicodeCustomDecodeError:
+                     # Wrong UTF codec detected; usually because it's not UTF-8
+                     # but some other 8-bit codec.  This is an RFC violation,
+                     # and the server didn't bother to tell us what codec *was*

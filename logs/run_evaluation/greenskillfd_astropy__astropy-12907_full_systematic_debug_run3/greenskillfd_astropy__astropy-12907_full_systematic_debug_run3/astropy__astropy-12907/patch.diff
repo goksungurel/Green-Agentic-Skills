@@ -1,0 +1,13 @@
+diff --git a/astropy/modeling/separable.py b/astropy/modeling/separable.py
+index a308e27297..9add7eaa14 100644
+--- a/astropy/modeling/separable.py
++++ b/astropy/modeling/separable.py
+@@ -55,7 +55,7 @@ def is_separable(transform):
+ 
+     """
+     if transform.n_inputs == 1 and transform.n_outputs > 1:
+-        is_separable = np.array([False] * transform.n_outputs).T
++        is_separable = np.array([True] * transform.n_outputs).T
+         return is_separable
+     separable_matrix = _separable(transform)
+     is_separable = separable_matrix.sum(1)

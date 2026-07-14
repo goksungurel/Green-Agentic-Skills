@@ -1,0 +1,13 @@
+diff --git a/xarray/core/duck_array_ops.py b/xarray/core/duck_array_ops.py
+index 126168d4..1186b3a2 100644
+--- a/xarray/core/duck_array_ops.py
++++ b/xarray/core/duck_array_ops.py
+@@ -37,7 +37,7 @@ def _dask_or_eager_func(
+                 dispatch_args = args[0]
+             else:
+                 dispatch_args = args[array_args]
+-            if any(isinstance(a, dask_array.Array) for a in dispatch_args):
++            if any(isinstance(a, (dask_array.Array, xr.Dataset)) for a in dispatch_args):
+                 try:
+                     wrapped = getattr(dask_module, name)
+                 except AttributeError as e:

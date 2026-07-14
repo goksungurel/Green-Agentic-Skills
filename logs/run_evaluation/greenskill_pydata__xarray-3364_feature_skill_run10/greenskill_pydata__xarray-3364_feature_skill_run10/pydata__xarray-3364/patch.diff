@@ -1,0 +1,13 @@
+diff --git a/asv_bench/benchmarks/combine.py b/asv_bench/benchmarks/combine.py
+index aa9662d4..a143663d 100644
+--- a/asv_bench/benchmarks/combine.py
++++ b/asv_bench/benchmarks/combine.py
+@@ -29,7 +29,7 @@ class Combine:
+     def time_combine_manual(self):
+         datasets = [[self.dsA0, self.dsA1], [self.dsB0, self.dsB1]]
+ 
+-        xr.combine_manual(datasets, concat_dim=[None, "t"])
++        xr.combine_manual(datasets, concat_dim=[None, "t", ignore_missing_vars=True])
+ 
+     def time_auto_combine(self):
+         """Also has to load and arrange t coordinate"""

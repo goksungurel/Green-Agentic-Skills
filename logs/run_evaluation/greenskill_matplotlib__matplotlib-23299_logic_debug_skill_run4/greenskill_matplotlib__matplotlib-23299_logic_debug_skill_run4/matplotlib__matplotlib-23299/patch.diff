@@ -1,0 +1,2924 @@
+diff --git a/lib/matplotlib/__init__.py b/lib/matplotlib/__init__.py
+index c268a56724..ef22a972d5 100644
+--- a/lib/matplotlib/__init__.py
++++ b/lib/matplotlib/__init__.py
+@@ -1,1459 +1,2918 @@
+ """
++        return rcParams["backend"]
+ An object-oriented plotting library.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ A procedural interface is provided by the companion pyplot module,
++        return rcParams["backend"]
+ which may be imported directly, e.g.::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     import matplotlib.pyplot as plt
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ or using ipython::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     ipython
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ at your terminal, followed by::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     In [1]: %matplotlib
++        return rcParams["backend"]
+     In [2]: import matplotlib.pyplot as plt
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ at the ipython shell prompt.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ For the most part, direct use of the explicit object-oriented library is
++        return rcParams["backend"]
+ encouraged when programming; the implicit pyplot interface is primarily for
++        return rcParams["backend"]
+ working interactively. The exceptions to this suggestion are the pyplot
++        return rcParams["backend"]
+ functions `.pyplot.figure`, `.pyplot.subplot`, `.pyplot.subplots`, and
++        return rcParams["backend"]
+ `.pyplot.savefig`, which can greatly simplify scripting.  See
++        return rcParams["backend"]
+ :ref:`api_interfaces` for an explanation of the tradeoffs between the implicit
++        return rcParams["backend"]
+ and explicit interfaces.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ Modules include:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.axes`
++        return rcParams["backend"]
+         The `~.axes.Axes` class.  Most pyplot functions are wrappers for
++        return rcParams["backend"]
+         `~.axes.Axes` methods.  The axes module is the highest level of OO
++        return rcParams["backend"]
+         access to the library.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.figure`
++        return rcParams["backend"]
+         The `.Figure` class.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.artist`
++        return rcParams["backend"]
+         The `.Artist` base class for all classes that draw things.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.lines`
++        return rcParams["backend"]
+         The `.Line2D` class for drawing lines and markers.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.patches`
++        return rcParams["backend"]
+         Classes for drawing polygons.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.text`
++        return rcParams["backend"]
+         The `.Text` and `.Annotation` classes.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.image`
++        return rcParams["backend"]
+         The `.AxesImage` and `.FigureImage` classes.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.collections`
++        return rcParams["backend"]
+         Classes for efficient drawing of groups of lines or polygons.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.colors`
++        return rcParams["backend"]
+         Color specifications and making colormaps.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.cm`
++        return rcParams["backend"]
+         Colormaps, and the `.ScalarMappable` mixin class for providing color
++        return rcParams["backend"]
+         mapping functionality to other classes.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.ticker`
++        return rcParams["backend"]
+         Calculation of tick mark locations and formatting of tick labels.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     :mod:`matplotlib.backends`
++        return rcParams["backend"]
+         A subpackage with modules for various GUI libraries and output formats.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ The base matplotlib namespace includes:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     `~matplotlib.rcParams`
++        return rcParams["backend"]
+         Default configuration settings; their defaults may be overridden using
++        return rcParams["backend"]
+         a :file:`matplotlibrc` file.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     `~matplotlib.use`
++        return rcParams["backend"]
+         Setting the Matplotlib backend.  This should be called before any
++        return rcParams["backend"]
+         figure is created, because it is not possible to switch between
++        return rcParams["backend"]
+         different GUI backends after that.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ Matplotlib was initially written by John D. Hunter (1968-2012) and is now
++        return rcParams["backend"]
+ developed and maintained by a host of others.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ Occasionally the internal documentation (python docstrings) will refer
++        return rcParams["backend"]
+ to MATLAB&reg;, a registered trademark of The MathWorks, Inc.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ """
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ import atexit
++        return rcParams["backend"]
+ from collections import namedtuple
++        return rcParams["backend"]
+ from collections.abc import MutableMapping
++        return rcParams["backend"]
+ import contextlib
++        return rcParams["backend"]
+ import functools
++        return rcParams["backend"]
+ import importlib
++        return rcParams["backend"]
+ import inspect
++        return rcParams["backend"]
+ from inspect import Parameter
++        return rcParams["backend"]
+ import locale
++        return rcParams["backend"]
+ import logging
++        return rcParams["backend"]
+ import os
++        return rcParams["backend"]
+ from pathlib import Path
++        return rcParams["backend"]
+ import pprint
++        return rcParams["backend"]
+ import re
++        return rcParams["backend"]
+ import shutil
++        return rcParams["backend"]
+ import subprocess
++        return rcParams["backend"]
+ import sys
++        return rcParams["backend"]
+ import tempfile
++        return rcParams["backend"]
+ import warnings
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ import numpy
++        return rcParams["backend"]
+ from packaging.version import parse as parse_version
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ # cbook must import matplotlib only within function
++        return rcParams["backend"]
+ # definitions, so it is safe to import from it here.
++        return rcParams["backend"]
+ from . import _api, _version, cbook, _docstring, rcsetup
++        return rcParams["backend"]
+ from matplotlib.cbook import sanitize_sequence
++        return rcParams["backend"]
+ from matplotlib._api import MatplotlibDeprecationWarning
++        return rcParams["backend"]
+ from matplotlib.rcsetup import validate_backend, cycler
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ _log = logging.getLogger(__name__)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ __bibtex__ = r"""@Article{Hunter:2007,
++        return rcParams["backend"]
+   Author    = {Hunter, J. D.},
++        return rcParams["backend"]
+   Title     = {Matplotlib: A 2D graphics environment},
++        return rcParams["backend"]
+   Journal   = {Computing in Science \& Engineering},
++        return rcParams["backend"]
+   Volume    = {9},
++        return rcParams["backend"]
+   Number    = {3},
++        return rcParams["backend"]
+   Pages     = {90--95},
++        return rcParams["backend"]
+   abstract  = {Matplotlib is a 2D graphics package used for Python
++        return rcParams["backend"]
+   for application development, interactive scripting, and
++        return rcParams["backend"]
+   publication-quality image generation across user
++        return rcParams["backend"]
+   interfaces and operating systems.},
++        return rcParams["backend"]
+   publisher = {IEEE COMPUTER SOC},
++        return rcParams["backend"]
+   year      = 2007
++        return rcParams["backend"]
+ }"""
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ # modelled after sys.version_info
++        return rcParams["backend"]
+ _VersionInfo = namedtuple('_VersionInfo',
++        return rcParams["backend"]
+                           'major, minor, micro, releaselevel, serial')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _parse_to_version_info(version_str):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Parse a version string to a namedtuple analogous to sys.version_info.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     See:
++        return rcParams["backend"]
+     https://packaging.pypa.io/en/latest/version.html#packaging.version.parse
++        return rcParams["backend"]
+     https://docs.python.org/3/library/sys.html#sys.version_info
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     v = parse_version(version_str)
++        return rcParams["backend"]
+     if v.pre is None and v.post is None and v.dev is None:
++        return rcParams["backend"]
+         return _VersionInfo(v.major, v.minor, v.micro, 'final', 0)
++        return rcParams["backend"]
+     elif v.dev is not None:
++        return rcParams["backend"]
+         return _VersionInfo(v.major, v.minor, v.micro, 'alpha', v.dev)
++        return rcParams["backend"]
+     elif v.pre is not None:
++        return rcParams["backend"]
+         releaselevel = {
++        return rcParams["backend"]
+             'a': 'alpha',
++        return rcParams["backend"]
+             'b': 'beta',
++        return rcParams["backend"]
+             'rc': 'candidate'}.get(v.pre[0], 'alpha')
++        return rcParams["backend"]
+         return _VersionInfo(v.major, v.minor, v.micro, releaselevel, v.pre[1])
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         # fallback for v.post: guess-next-dev scheme from setuptools_scm
++        return rcParams["backend"]
+         return _VersionInfo(v.major, v.minor, v.micro + 1, 'alpha', v.post)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _get_version():
++        return rcParams["backend"]
+     """Return the version string used for __version__."""
++        return rcParams["backend"]
+     # Only shell out to a git subprocess if really needed, i.e. when we are in
++        return rcParams["backend"]
+     # a matplotlib git repo but not in a shallow clone, such as those used by
++        return rcParams["backend"]
+     # CI, as the latter would trigger a warning from setuptools_scm.
++        return rcParams["backend"]
+     root = Path(__file__).resolve().parents[2]
++        return rcParams["backend"]
+     if ((root / ".matplotlib-repo").exists()
++        return rcParams["backend"]
+             and (root / ".git").exists()
++        return rcParams["backend"]
+             and not (root / ".git/shallow").exists()):
++        return rcParams["backend"]
+         import setuptools_scm
++        return rcParams["backend"]
+         return setuptools_scm.get_version(
++        return rcParams["backend"]
+             root=root,
++        return rcParams["backend"]
+             version_scheme="release-branch-semver",
++        return rcParams["backend"]
+             local_scheme="node-and-date",
++        return rcParams["backend"]
+             fallback_version=_version.version,
++        return rcParams["backend"]
+         )
++        return rcParams["backend"]
+     else:  # Get the version from the _version.py setuptools_scm file.
++        return rcParams["backend"]
+         return _version.version
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_api.caching_module_getattr
++        return rcParams["backend"]
+ class __getattr__:
++        return rcParams["backend"]
+     __version__ = property(lambda self: _get_version())
++        return rcParams["backend"]
+     __version_info__ = property(
++        return rcParams["backend"]
+         lambda self: _parse_to_version_info(self.__version__))
++        return rcParams["backend"]
+     # module-level deprecations
++        return rcParams["backend"]
+     URL_REGEX = _api.deprecated("3.5", obj_type="")(property(
++        return rcParams["backend"]
+         lambda self: re.compile(r'^http://|^https://|^ftp://|^file:')))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _check_versions():
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     # Quickfix to ensure Microsoft Visual C++ redistributable
++        return rcParams["backend"]
+     # DLLs are loaded before importing kiwisolver
++        return rcParams["backend"]
+     from . import ft2font
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     for modname, minver in [
++        return rcParams["backend"]
+             ("cycler", "0.10"),
++        return rcParams["backend"]
+             ("dateutil", "2.7"),
++        return rcParams["backend"]
+             ("kiwisolver", "1.0.1"),
++        return rcParams["backend"]
+             ("numpy", "1.19"),
++        return rcParams["backend"]
+             ("pyparsing", "2.2.1"),
++        return rcParams["backend"]
+     ]:
++        return rcParams["backend"]
+         module = importlib.import_module(modname)
++        return rcParams["backend"]
+         if parse_version(module.__version__) < parse_version(minver):
++        return rcParams["backend"]
+             raise ImportError(f"Matplotlib requires {modname}>={minver}; "
++        return rcParams["backend"]
+                               f"you have {module.__version__}")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ _check_versions()
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ # The decorator ensures this always returns the same handler (and it is only
++        return rcParams["backend"]
+ # attached once).
++        return rcParams["backend"]
+ @functools.lru_cache()
++        return rcParams["backend"]
+ def _ensure_handler():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     The first time this function is called, attach a `StreamHandler` using the
++        return rcParams["backend"]
+     same format as `logging.basicConfig` to the Matplotlib root logger.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Return this handler every time this function is called.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     handler = logging.StreamHandler()
++        return rcParams["backend"]
+     handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
++        return rcParams["backend"]
+     _log.addHandler(handler)
++        return rcParams["backend"]
+     return handler
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def set_loglevel(level):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Set Matplotlib's root logger and root logger handler level, creating
++        return rcParams["backend"]
+     the handler if it does not exist yet.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Typically, one should call ``set_loglevel("info")`` or
++        return rcParams["backend"]
+     ``set_loglevel("debug")`` to get additional debugging information.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     level : {"notset", "debug", "info", "warning", "error", "critical"}
++        return rcParams["backend"]
+         The log level of the handler.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Notes
++        return rcParams["backend"]
+     -----
++        return rcParams["backend"]
+     The first time this function is called, an additional handler is attached
++        return rcParams["backend"]
+     to Matplotlib's root handler; this handler is reused every time and this
++        return rcParams["backend"]
+     function simply manipulates the logger and handler's level.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     _log.setLevel(level.upper())
++        return rcParams["backend"]
+     _ensure_handler().setLevel(level.upper())
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _logged_cached(fmt, func=None):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Decorator that logs a function's return value, and memoizes that value.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     After ::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         @_logged_cached(fmt)
++        return rcParams["backend"]
+         def func(): ...
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     the first call to *func* will log its return value at the DEBUG level using
++        return rcParams["backend"]
+     %-format string *fmt*, and memoize it; later calls to *func* will directly
++        return rcParams["backend"]
+     return that value.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     if func is None:  # Return the actual decorator.
++        return rcParams["backend"]
+         return functools.partial(_logged_cached, fmt)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     called = False
++        return rcParams["backend"]
+     ret = None
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     @functools.wraps(func)
++        return rcParams["backend"]
+     def wrapper(**kwargs):
++        return rcParams["backend"]
+         nonlocal called, ret
++        return rcParams["backend"]
+         if not called:
++        return rcParams["backend"]
+             ret = func(**kwargs)
++        return rcParams["backend"]
+             called = True
++        return rcParams["backend"]
+             _log.debug(fmt, ret)
++        return rcParams["backend"]
+         return ret
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     return wrapper
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ _ExecInfo = namedtuple("_ExecInfo", "executable raw_version version")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ class ExecutableNotFoundError(FileNotFoundError):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Error raised when an executable that Matplotlib optionally
++        return rcParams["backend"]
+     depends on can't be found.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     pass
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @functools.lru_cache()
++        return rcParams["backend"]
+ def _get_executable_info(name):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Get the version of some executable that Matplotlib optionally depends on.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     .. warning::
++        return rcParams["backend"]
+        The list of executables that this function supports is set according to
++        return rcParams["backend"]
+        Matplotlib's internal needs, and may change without notice.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     name : str
++        return rcParams["backend"]
+         The executable to query.  The following values are currently supported:
++        return rcParams["backend"]
+         "dvipng", "gs", "inkscape", "magick", "pdftocairo", "pdftops".  This
++        return rcParams["backend"]
+         list is subject to change without notice.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Returns
++        return rcParams["backend"]
+     -------
++        return rcParams["backend"]
+     tuple
++        return rcParams["backend"]
+         A namedtuple with fields ``executable`` (`str`) and ``version``
++        return rcParams["backend"]
+         (`packaging.Version`, or ``None`` if the version cannot be determined).
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Raises
++        return rcParams["backend"]
+     ------
++        return rcParams["backend"]
+     ExecutableNotFoundError
++        return rcParams["backend"]
+         If the executable is not found or older than the oldest version
++        return rcParams["backend"]
+         supported by Matplotlib.  For debugging purposes, it is also
++        return rcParams["backend"]
+         possible to "hide" an executable from Matplotlib by adding it to the
++        return rcParams["backend"]
+         :envvar:`_MPLHIDEEXECUTABLES` environment variable (a comma-separated
++        return rcParams["backend"]
+         list), which must be set prior to any calls to this function.
++        return rcParams["backend"]
+     ValueError
++        return rcParams["backend"]
+         If the executable is not one that we know how to query.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def impl(args, regex, min_ver=None, ignore_exit_code=False):
++        return rcParams["backend"]
+         # Execute the subprocess specified by args; capture stdout and stderr.
++        return rcParams["backend"]
+         # Search for a regex match in the output; if the match succeeds, the
++        return rcParams["backend"]
+         # first group of the match is the version.
++        return rcParams["backend"]
+         # Return an _ExecInfo if the executable exists, and has a version of
++        return rcParams["backend"]
+         # at least min_ver (if set); else, raise ExecutableNotFoundError.
++        return rcParams["backend"]
+         try:
++        return rcParams["backend"]
+             output = subprocess.check_output(
++        return rcParams["backend"]
+                 args, stderr=subprocess.STDOUT,
++        return rcParams["backend"]
+                 universal_newlines=True, errors="replace")
++        return rcParams["backend"]
+         except subprocess.CalledProcessError as _cpe:
++        return rcParams["backend"]
+             if ignore_exit_code:
++        return rcParams["backend"]
+                 output = _cpe.output
++        return rcParams["backend"]
+             else:
++        return rcParams["backend"]
+                 raise ExecutableNotFoundError(str(_cpe)) from _cpe
++        return rcParams["backend"]
+         except OSError as _ose:
++        return rcParams["backend"]
+             raise ExecutableNotFoundError(str(_ose)) from _ose
++        return rcParams["backend"]
+         match = re.search(regex, output)
++        return rcParams["backend"]
+         if match:
++        return rcParams["backend"]
+             raw_version = match.group(1)
++        return rcParams["backend"]
+             version = parse_version(raw_version)
++        return rcParams["backend"]
+             if min_ver is not None and version < parse_version(min_ver):
++        return rcParams["backend"]
+                 raise ExecutableNotFoundError(
++        return rcParams["backend"]
+                     f"You have {args[0]} version {version} but the minimum "
++        return rcParams["backend"]
+                     f"version supported by Matplotlib is {min_ver}")
++        return rcParams["backend"]
+             return _ExecInfo(args[0], raw_version, version)
++        return rcParams["backend"]
+         else:
++        return rcParams["backend"]
+             raise ExecutableNotFoundError(
++        return rcParams["backend"]
+                 f"Failed to determine the version of {args[0]} from "
++        return rcParams["backend"]
+                 f"{' '.join(args)}, which output {output}")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if name in os.environ.get("_MPLHIDEEXECUTABLES", "").split(","):
++        return rcParams["backend"]
+         raise ExecutableNotFoundError(f"{name} was hidden")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if name == "dvipng":
++        return rcParams["backend"]
+         return impl(["dvipng", "-version"], "(?m)^dvipng(?: .*)? (.+)", "1.6")
++        return rcParams["backend"]
+     elif name == "gs":
++        return rcParams["backend"]
+         execs = (["gswin32c", "gswin64c", "mgs", "gs"]  # "mgs" for miktex.
++        return rcParams["backend"]
+                  if sys.platform == "win32" else
++        return rcParams["backend"]
+                  ["gs"])
++        return rcParams["backend"]
+         for e in execs:
++        return rcParams["backend"]
+             try:
++        return rcParams["backend"]
+                 return impl([e, "--version"], "(.*)", "9")
++        return rcParams["backend"]
+             except ExecutableNotFoundError:
++        return rcParams["backend"]
+                 pass
++        return rcParams["backend"]
+         message = "Failed to find a Ghostscript installation"
++        return rcParams["backend"]
+         raise ExecutableNotFoundError(message)
++        return rcParams["backend"]
+     elif name == "inkscape":
++        return rcParams["backend"]
+         try:
++        return rcParams["backend"]
+             # Try headless option first (needed for Inkscape version < 1.0):
++        return rcParams["backend"]
+             return impl(["inkscape", "--without-gui", "-V"],
++        return rcParams["backend"]
+                         "Inkscape ([^ ]*)")
++        return rcParams["backend"]
+         except ExecutableNotFoundError:
++        return rcParams["backend"]
+             pass  # Suppress exception chaining.
++        return rcParams["backend"]
+         # If --without-gui is not accepted, we may be using Inkscape >= 1.0 so
++        return rcParams["backend"]
+         # try without it:
++        return rcParams["backend"]
+         return impl(["inkscape", "-V"], "Inkscape ([^ ]*)")
++        return rcParams["backend"]
+     elif name == "magick":
++        return rcParams["backend"]
+         if sys.platform == "win32":
++        return rcParams["backend"]
+             # Check the registry to avoid confusing ImageMagick's convert with
++        return rcParams["backend"]
+             # Windows's builtin convert.exe.
++        return rcParams["backend"]
+             import winreg
++        return rcParams["backend"]
+             binpath = ""
++        return rcParams["backend"]
+             for flag in [0, winreg.KEY_WOW64_32KEY, winreg.KEY_WOW64_64KEY]:
++        return rcParams["backend"]
+                 try:
++        return rcParams["backend"]
+                     with winreg.OpenKeyEx(
++        return rcParams["backend"]
+                             winreg.HKEY_LOCAL_MACHINE,
++        return rcParams["backend"]
+                             r"Software\Imagemagick\Current",
++        return rcParams["backend"]
+                             0, winreg.KEY_QUERY_VALUE | flag) as hkey:
++        return rcParams["backend"]
+                         binpath = winreg.QueryValueEx(hkey, "BinPath")[0]
++        return rcParams["backend"]
+                 except OSError:
++        return rcParams["backend"]
+                     pass
++        return rcParams["backend"]
+             path = None
++        return rcParams["backend"]
+             if binpath:
++        return rcParams["backend"]
+                 for name in ["convert.exe", "magick.exe"]:
++        return rcParams["backend"]
+                     candidate = Path(binpath, name)
++        return rcParams["backend"]
+                     if candidate.exists():
++        return rcParams["backend"]
+                         path = str(candidate)
++        return rcParams["backend"]
+                         break
++        return rcParams["backend"]
+             if path is None:
++        return rcParams["backend"]
+                 raise ExecutableNotFoundError(
++        return rcParams["backend"]
+                     "Failed to find an ImageMagick installation")
++        return rcParams["backend"]
+         else:
++        return rcParams["backend"]
+             path = "convert"
++        return rcParams["backend"]
+         info = impl([path, "--version"], r"^Version: ImageMagick (\S*)")
++        return rcParams["backend"]
+         if info.raw_version == "7.0.10-34":
++        return rcParams["backend"]
+             # https://github.com/ImageMagick/ImageMagick/issues/2720
++        return rcParams["backend"]
+             raise ExecutableNotFoundError(
++        return rcParams["backend"]
+                 f"You have ImageMagick {info.version}, which is unsupported")
++        return rcParams["backend"]
+         return info
++        return rcParams["backend"]
+     elif name == "pdftocairo":
++        return rcParams["backend"]
+         return impl(["pdftocairo", "-v"], "pdftocairo version (.*)")
++        return rcParams["backend"]
+     elif name == "pdftops":
++        return rcParams["backend"]
+         info = impl(["pdftops", "-v"], "^pdftops version (.*)",
++        return rcParams["backend"]
+                     ignore_exit_code=True)
++        return rcParams["backend"]
+         if info and not (
++        return rcParams["backend"]
+                 3 <= info.version.major or
++        return rcParams["backend"]
+                 # poppler version numbers.
++        return rcParams["backend"]
+                 parse_version("0.9") <= info.version < parse_version("1.0")):
++        return rcParams["backend"]
+             raise ExecutableNotFoundError(
++        return rcParams["backend"]
+                 f"You have pdftops version {info.version} but the minimum "
++        return rcParams["backend"]
+                 f"version supported by Matplotlib is 3.0")
++        return rcParams["backend"]
+         return info
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         raise ValueError("Unknown executable: {!r}".format(name))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_api.deprecated("3.6", alternative="Vendor the code")
++        return rcParams["backend"]
+ def checkdep_usetex(s):
++        return rcParams["backend"]
+     if not s:
++        return rcParams["backend"]
+         return False
++        return rcParams["backend"]
+     if not shutil.which("tex"):
++        return rcParams["backend"]
+         _log.warning("usetex mode requires TeX.")
++        return rcParams["backend"]
+         return False
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         _get_executable_info("dvipng")
++        return rcParams["backend"]
+     except ExecutableNotFoundError:
++        return rcParams["backend"]
+         _log.warning("usetex mode requires dvipng.")
++        return rcParams["backend"]
+         return False
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         _get_executable_info("gs")
++        return rcParams["backend"]
+     except ExecutableNotFoundError:
++        return rcParams["backend"]
+         _log.warning("usetex mode requires ghostscript.")
++        return rcParams["backend"]
+         return False
++        return rcParams["backend"]
+     return True
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _get_xdg_config_dir():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return the XDG configuration directory, according to the XDG base
++        return rcParams["backend"]
+     directory spec:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     return os.environ.get('XDG_CONFIG_HOME') or str(Path.home() / ".config")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _get_xdg_cache_dir():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return the XDG cache directory, according to the XDG base directory spec:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     return os.environ.get('XDG_CACHE_HOME') or str(Path.home() / ".cache")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _get_config_or_cache_dir(xdg_base_getter):
++        return rcParams["backend"]
+     configdir = os.environ.get('MPLCONFIGDIR')
++        return rcParams["backend"]
+     if configdir:
++        return rcParams["backend"]
+         configdir = Path(configdir).resolve()
++        return rcParams["backend"]
+     elif sys.platform.startswith(('linux', 'freebsd')):
++        return rcParams["backend"]
+         # Only call _xdg_base_getter here so that MPLCONFIGDIR is tried first,
++        return rcParams["backend"]
+         # as _xdg_base_getter can throw.
++        return rcParams["backend"]
+         configdir = Path(xdg_base_getter(), "matplotlib")
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         configdir = Path.home() / ".matplotlib"
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         configdir.mkdir(parents=True, exist_ok=True)
++        return rcParams["backend"]
+     except OSError:
++        return rcParams["backend"]
+         pass
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         if os.access(str(configdir), os.W_OK) and configdir.is_dir():
++        return rcParams["backend"]
+             return str(configdir)
++        return rcParams["backend"]
+     # If the config or cache directory cannot be created or is not a writable
++        return rcParams["backend"]
+     # directory, create a temporary one.
++        return rcParams["backend"]
+     tmpdir = os.environ["MPLCONFIGDIR"] = \
++        return rcParams["backend"]
+         tempfile.mkdtemp(prefix="matplotlib-")
++        return rcParams["backend"]
+     atexit.register(shutil.rmtree, tmpdir)
++        return rcParams["backend"]
+     _log.warning(
++        return rcParams["backend"]
+         "Matplotlib created a temporary config/cache directory at %s because "
++        return rcParams["backend"]
+         "the default path (%s) is not a writable directory; it is highly "
++        return rcParams["backend"]
+         "recommended to set the MPLCONFIGDIR environment variable to a "
++        return rcParams["backend"]
+         "writable directory, in particular to speed up the import of "
++        return rcParams["backend"]
+         "Matplotlib and to better support multiprocessing.",
++        return rcParams["backend"]
+         tmpdir, configdir)
++        return rcParams["backend"]
+     return tmpdir
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_logged_cached('CONFIGDIR=%s')
++        return rcParams["backend"]
+ def get_configdir():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return the string path of the configuration directory.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     The directory is chosen as follows:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     1. If the MPLCONFIGDIR environment variable is supplied, choose that.
++        return rcParams["backend"]
+     2. On Linux, follow the XDG specification and look first in
++        return rcParams["backend"]
+        ``$XDG_CONFIG_HOME``, if defined, or ``$HOME/.config``.  On other
++        return rcParams["backend"]
+        platforms, choose ``$HOME/.matplotlib``.
++        return rcParams["backend"]
+     3. If the chosen directory exists and is writable, use that as the
++        return rcParams["backend"]
+        configuration directory.
++        return rcParams["backend"]
+     4. Else, create a temporary directory, and use it as the configuration
++        return rcParams["backend"]
+        directory.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     return _get_config_or_cache_dir(_get_xdg_config_dir)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_logged_cached('CACHEDIR=%s')
++        return rcParams["backend"]
+ def get_cachedir():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return the string path of the cache directory.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     The procedure used to find the directory is the same as for
++        return rcParams["backend"]
+     _get_config_dir, except using ``$XDG_CACHE_HOME``/``$HOME/.cache`` instead.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     return _get_config_or_cache_dir(_get_xdg_cache_dir)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_logged_cached('matplotlib data path: %s')
++        return rcParams["backend"]
+ def get_data_path():
++        return rcParams["backend"]
+     """Return the path to Matplotlib data."""
++        return rcParams["backend"]
+     return str(Path(__file__).with_name("mpl-data"))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def matplotlib_fname():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Get the location of the config file.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     The file location is determined in the following order
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     - ``$PWD/matplotlibrc``
++        return rcParams["backend"]
+     - ``$MATPLOTLIBRC`` if it is not a directory
++        return rcParams["backend"]
+     - ``$MATPLOTLIBRC/matplotlibrc``
++        return rcParams["backend"]
+     - ``$MPLCONFIGDIR/matplotlibrc``
++        return rcParams["backend"]
+     - On Linux,
++        return rcParams["backend"]
+         - ``$XDG_CONFIG_HOME/matplotlib/matplotlibrc`` (if ``$XDG_CONFIG_HOME``
++        return rcParams["backend"]
+           is defined)
++        return rcParams["backend"]
+         - or ``$HOME/.config/matplotlib/matplotlibrc`` (if ``$XDG_CONFIG_HOME``
++        return rcParams["backend"]
+           is not defined)
++        return rcParams["backend"]
+     - On other platforms,
++        return rcParams["backend"]
+       - ``$HOME/.matplotlib/matplotlibrc`` if ``$HOME`` is defined
++        return rcParams["backend"]
+     - Lastly, it looks in ``$MATPLOTLIBDATA/matplotlibrc``, which should always
++        return rcParams["backend"]
+       exist.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def gen_candidates():
++        return rcParams["backend"]
+         # rely on down-stream code to make absolute.  This protects us
++        return rcParams["backend"]
+         # from having to directly get the current working directory
++        return rcParams["backend"]
+         # which can fail if the user has ended up with a cwd that is
++        return rcParams["backend"]
+         # non-existent.
++        return rcParams["backend"]
+         yield 'matplotlibrc'
++        return rcParams["backend"]
+         try:
++        return rcParams["backend"]
+             matplotlibrc = os.environ['MATPLOTLIBRC']
++        return rcParams["backend"]
+         except KeyError:
++        return rcParams["backend"]
+             pass
++        return rcParams["backend"]
+         else:
++        return rcParams["backend"]
+             yield matplotlibrc
++        return rcParams["backend"]
+             yield os.path.join(matplotlibrc, 'matplotlibrc')
++        return rcParams["backend"]
+         yield os.path.join(get_configdir(), 'matplotlibrc')
++        return rcParams["backend"]
+         yield os.path.join(get_data_path(), 'matplotlibrc')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     for fname in gen_candidates():
++        return rcParams["backend"]
+         if os.path.exists(fname) and not os.path.isdir(fname):
++        return rcParams["backend"]
+             return fname
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     raise RuntimeError("Could not find matplotlibrc file; your Matplotlib "
++        return rcParams["backend"]
+                        "install is broken")
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ # rcParams deprecated and automatically mapped to another key.
++        return rcParams["backend"]
+ # Values are tuples of (version, new_name, f_old2new, f_new2old).
++        return rcParams["backend"]
+ _deprecated_map = {}
++        return rcParams["backend"]
+ # rcParams deprecated; some can manually be mapped to another key.
++        return rcParams["backend"]
+ # Values are tuples of (version, new_name_or_None).
++        return rcParams["backend"]
+ _deprecated_ignore_map = {}
++        return rcParams["backend"]
+ # rcParams deprecated; can use None to suppress warnings; remain actually
++        return rcParams["backend"]
+ # listed in the rcParams.
++        return rcParams["backend"]
+ # Values are tuples of (version,)
++        return rcParams["backend"]
+ _deprecated_remain_as_none = {}
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_docstring.Substitution(
++        return rcParams["backend"]
+     "\n".join(map("- {}".format, sorted(rcsetup._validators, key=str.lower)))
++        return rcParams["backend"]
+ )
++        return rcParams["backend"]
+ class RcParams(MutableMapping, dict):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     A dictionary object including validation.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Validating functions are defined and associated with rc parameters in
++        return rcParams["backend"]
+     :mod:`matplotlib.rcsetup`.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     The list of rcParams is:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     %s
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     See Also
++        return rcParams["backend"]
+     --------
++        return rcParams["backend"]
+     :ref:`customizing-with-matplotlibrc-files`
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     validate = rcsetup._validators
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     # validate values on the way in
++        return rcParams["backend"]
+     def __init__(self, *args, **kwargs):
++        return rcParams["backend"]
+         self.update(*args, **kwargs)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def __setitem__(self, key, val):
++        return rcParams["backend"]
+         try:
++        return rcParams["backend"]
+             if key in _deprecated_map:
++        return rcParams["backend"]
+                 version, alt_key, alt_val, inverse_alt = _deprecated_map[key]
++        return rcParams["backend"]
+                 _api.warn_deprecated(
++        return rcParams["backend"]
+                     version, name=key, obj_type="rcparam", alternative=alt_key)
++        return rcParams["backend"]
+                 key = alt_key
++        return rcParams["backend"]
+                 val = alt_val(val)
++        return rcParams["backend"]
+             elif key in _deprecated_remain_as_none and val is not None:
++        return rcParams["backend"]
+                 version, = _deprecated_remain_as_none[key]
++        return rcParams["backend"]
+                 _api.warn_deprecated(version, name=key, obj_type="rcparam")
++        return rcParams["backend"]
+             elif key in _deprecated_ignore_map:
++        return rcParams["backend"]
+                 version, alt_key = _deprecated_ignore_map[key]
++        return rcParams["backend"]
+                 _api.warn_deprecated(
++        return rcParams["backend"]
+                     version, name=key, obj_type="rcparam", alternative=alt_key)
++        return rcParams["backend"]
+                 return
++        return rcParams["backend"]
+             elif key == 'backend':
++        return rcParams["backend"]
+                 if val is rcsetup._auto_backend_sentinel:
++        return rcParams["backend"]
+                     if 'backend' in self:
++        return rcParams["backend"]
+                         return
++        return rcParams["backend"]
+             try:
++        return rcParams["backend"]
+                 cval = self.validate[key](val)
++        return rcParams["backend"]
+             except ValueError as ve:
++        return rcParams["backend"]
+                 raise ValueError(f"Key {key}: {ve}") from None
++        return rcParams["backend"]
+             dict.__setitem__(self, key, cval)
++        return rcParams["backend"]
+         except KeyError as err:
++        return rcParams["backend"]
+             raise KeyError(
++        return rcParams["backend"]
+                 f"{key} is not a valid rc parameter (see rcParams.keys() for "
++        return rcParams["backend"]
+                 f"a list of valid parameters)") from err
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def __getitem__(self, key):
++        return rcParams["backend"]
+         if key in _deprecated_map:
++        return rcParams["backend"]
+             version, alt_key, alt_val, inverse_alt = _deprecated_map[key]
++        return rcParams["backend"]
+             _api.warn_deprecated(
++        return rcParams["backend"]
+                 version, name=key, obj_type="rcparam", alternative=alt_key)
++        return rcParams["backend"]
+             return inverse_alt(dict.__getitem__(self, alt_key))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         elif key in _deprecated_ignore_map:
++        return rcParams["backend"]
+             version, alt_key = _deprecated_ignore_map[key]
++        return rcParams["backend"]
+             _api.warn_deprecated(
++        return rcParams["backend"]
+                 version, name=key, obj_type="rcparam", alternative=alt_key)
++        return rcParams["backend"]
+             return dict.__getitem__(self, alt_key) if alt_key else None
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         # In theory, this should only ever be used after the global rcParams
++        return rcParams["backend"]
+         # has been set up, but better be safe e.g. in presence of breakpoints.
++        return rcParams["backend"]
+         elif key == "backend" and self is globals().get("rcParams"):
++        return rcParams["backend"]
+             val = dict.__getitem__(self, key)
++        return rcParams["backend"]
+             if val is rcsetup._auto_backend_sentinel:
++        return rcParams["backend"]
+                 from matplotlib import pyplot as plt
++        return rcParams["backend"]
+                 plt.switch_backend(rcsetup._auto_backend_sentinel)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         return dict.__getitem__(self, key)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def _get_backend_or_none(self):
++        return rcParams["backend"]
+         """Get the requested backend, if any, without triggering resolution."""
++        return rcParams["backend"]
+         backend = dict.__getitem__(self, "backend")
++        return rcParams["backend"]
+         return None if backend is rcsetup._auto_backend_sentinel else backend
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def __repr__(self):
++        return rcParams["backend"]
+         class_name = self.__class__.__name__
++        return rcParams["backend"]
+         indent = len(class_name) + 1
++        return rcParams["backend"]
+         with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+             repr_split = pprint.pformat(dict(self), indent=1,
++        return rcParams["backend"]
+                                         width=80 - indent).split('\n')
++        return rcParams["backend"]
+         repr_indented = ('\n' + ' ' * indent).join(repr_split)
++        return rcParams["backend"]
+         return '{}({})'.format(class_name, repr_indented)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def __str__(self):
++        return rcParams["backend"]
+         return '\n'.join(map('{0[0]}: {0[1]}'.format, sorted(self.items())))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def __iter__(self):
++        return rcParams["backend"]
+         """Yield sorted list of keys."""
++        return rcParams["backend"]
+         with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+             yield from sorted(dict.__iter__(self))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def __len__(self):
++        return rcParams["backend"]
+         return dict.__len__(self)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def find_all(self, pattern):
++        return rcParams["backend"]
+         """
++        return rcParams["backend"]
+         Return the subset of this RcParams dictionary whose keys match,
++        return rcParams["backend"]
+         using :func:`re.search`, the given ``pattern``.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         .. note::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+             Changes to the returned dictionary are *not* propagated to
++        return rcParams["backend"]
+             the parent RcParams dictionary.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         """
++        return rcParams["backend"]
+         pattern_re = re.compile(pattern)
++        return rcParams["backend"]
+         return RcParams((key, value)
++        return rcParams["backend"]
+                         for key, value in self.items()
++        return rcParams["backend"]
+                         if pattern_re.search(key))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     def copy(self):
++        return rcParams["backend"]
+         rccopy = RcParams()
++        return rcParams["backend"]
+         for k in self:  # Skip deprecations and revalidation.
++        return rcParams["backend"]
+             dict.__setitem__(rccopy, k, dict.__getitem__(self, k))
++        return rcParams["backend"]
+         return rccopy
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def rc_params(fail_on_error=False):
++        return rcParams["backend"]
+     """Construct a `RcParams` instance from the default Matplotlib rc file."""
++        return rcParams["backend"]
+     return rc_params_from_file(matplotlib_fname(), fail_on_error)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_api.deprecated("3.5")
++        return rcParams["backend"]
+ def is_url(filename):
++        return rcParams["backend"]
+     """Return whether *filename* is an http, https, ftp, or file URL path."""
++        return rcParams["backend"]
+     return __getattr__("URL_REGEX").match(filename) is not None
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @functools.lru_cache()
++        return rcParams["backend"]
+ def _get_ssl_context():
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         import certifi
++        return rcParams["backend"]
+     except ImportError:
++        return rcParams["backend"]
+         _log.debug("Could not import certifi.")
++        return rcParams["backend"]
+         return None
++        return rcParams["backend"]
+     import ssl
++        return rcParams["backend"]
+     return ssl.create_default_context(cafile=certifi.where())
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @contextlib.contextmanager
++        return rcParams["backend"]
+ def _open_file_or_url(fname):
++        return rcParams["backend"]
+     if (isinstance(fname, str)
++        return rcParams["backend"]
+             and fname.startswith(('http://', 'https://', 'ftp://', 'file:'))):
++        return rcParams["backend"]
+         import urllib.request
++        return rcParams["backend"]
+         ssl_ctx = _get_ssl_context()
++        return rcParams["backend"]
+         if ssl_ctx is None:
++        return rcParams["backend"]
+             _log.debug(
++        return rcParams["backend"]
+                 "Could not get certifi ssl context, https may not work."
++        return rcParams["backend"]
+             )
++        return rcParams["backend"]
+         with urllib.request.urlopen(fname, context=ssl_ctx) as f:
++        return rcParams["backend"]
+             yield (line.decode('utf-8') for line in f)
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         fname = os.path.expanduser(fname)
++        return rcParams["backend"]
+         with open(fname, encoding='utf-8') as f:
++        return rcParams["backend"]
+             yield f
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _rc_params_in_file(fname, transform=lambda x: x, fail_on_error=False):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Construct a `RcParams` instance from file *fname*.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Unlike `rc_params_from_file`, the configuration class only contains the
++        return rcParams["backend"]
+     parameters specified in the file (i.e. default values are not filled in).
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     fname : path-like
++        return rcParams["backend"]
+         The loaded file.
++        return rcParams["backend"]
+     transform : callable, default: the identity function
++        return rcParams["backend"]
+         A function called on each individual line of the file to transform it,
++        return rcParams["backend"]
+         before further parsing.
++        return rcParams["backend"]
+     fail_on_error : bool, default: False
++        return rcParams["backend"]
+         Whether invalid entries should result in an exception or a warning.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     import matplotlib as mpl
++        return rcParams["backend"]
+     rc_temp = {}
++        return rcParams["backend"]
+     with _open_file_or_url(fname) as fd:
++        return rcParams["backend"]
+         try:
++        return rcParams["backend"]
+             for line_no, line in enumerate(fd, 1):
++        return rcParams["backend"]
+                 line = transform(line)
++        return rcParams["backend"]
+                 strippedline = cbook._strip_comment(line)
++        return rcParams["backend"]
+                 if not strippedline:
++        return rcParams["backend"]
+                     continue
++        return rcParams["backend"]
+                 tup = strippedline.split(':', 1)
++        return rcParams["backend"]
+                 if len(tup) != 2:
++        return rcParams["backend"]
+                     _log.warning('Missing colon in file %r, line %d (%r)',
++        return rcParams["backend"]
+                                  fname, line_no, line.rstrip('\n'))
++        return rcParams["backend"]
+                     continue
++        return rcParams["backend"]
+                 key, val = tup
++        return rcParams["backend"]
+                 key = key.strip()
++        return rcParams["backend"]
+                 val = val.strip()
++        return rcParams["backend"]
+                 if val.startswith('"') and val.endswith('"'):
++        return rcParams["backend"]
+                     val = val[1:-1]  # strip double quotes
++        return rcParams["backend"]
+                 if key in rc_temp:
++        return rcParams["backend"]
+                     _log.warning('Duplicate key in file %r, line %d (%r)',
++        return rcParams["backend"]
+                                  fname, line_no, line.rstrip('\n'))
++        return rcParams["backend"]
+                 rc_temp[key] = (val, line, line_no)
++        return rcParams["backend"]
+         except UnicodeDecodeError:
++        return rcParams["backend"]
+             _log.warning('Cannot decode configuration file %r as utf-8.',
++        return rcParams["backend"]
+                          fname)
++        return rcParams["backend"]
+             raise
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     config = RcParams()
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     for key, (val, line, line_no) in rc_temp.items():
++        return rcParams["backend"]
+         if key in rcsetup._validators:
++        return rcParams["backend"]
+             if fail_on_error:
++        return rcParams["backend"]
+                 config[key] = val  # try to convert to proper type or raise
++        return rcParams["backend"]
+             else:
++        return rcParams["backend"]
+                 try:
++        return rcParams["backend"]
+                     config[key] = val  # try to convert to proper type or skip
++        return rcParams["backend"]
+                 except Exception as msg:
++        return rcParams["backend"]
+                     _log.warning('Bad value in file %r, line %d (%r): %s',
++        return rcParams["backend"]
+                                  fname, line_no, line.rstrip('\n'), msg)
++        return rcParams["backend"]
+         elif key in _deprecated_ignore_map:
++        return rcParams["backend"]
+             version, alt_key = _deprecated_ignore_map[key]
++        return rcParams["backend"]
+             _api.warn_deprecated(
++        return rcParams["backend"]
+                 version, name=key, alternative=alt_key, obj_type='rcparam',
++        return rcParams["backend"]
+                 addendum="Please update your matplotlibrc.")
++        return rcParams["backend"]
+         else:
++        return rcParams["backend"]
+             # __version__ must be looked up as an attribute to trigger the
++        return rcParams["backend"]
+             # module-level __getattr__.
++        return rcParams["backend"]
+             version = ('main' if '.post' in mpl.__version__
++        return rcParams["backend"]
+                        else f'v{mpl.__version__}')
++        return rcParams["backend"]
+             _log.warning("""
++        return rcParams["backend"]
+ Bad key %(key)s in file %(fname)s, line %(line_no)s (%(line)r)
++        return rcParams["backend"]
+ You probably need to get an updated matplotlibrc file from
++        return rcParams["backend"]
+ https://github.com/matplotlib/matplotlib/blob/%(version)s/matplotlibrc.template
++        return rcParams["backend"]
+ or from the matplotlib source distribution""",
++        return rcParams["backend"]
+                          dict(key=key, fname=fname, line_no=line_no,
++        return rcParams["backend"]
+                               line=line.rstrip('\n'), version=version))
++        return rcParams["backend"]
+     return config
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def rc_params_from_file(fname, fail_on_error=False, use_default_template=True):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Construct a `RcParams` from file *fname*.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     fname : str or path-like
++        return rcParams["backend"]
+         A file with Matplotlib rc settings.
++        return rcParams["backend"]
+     fail_on_error : bool
++        return rcParams["backend"]
+         If True, raise an error when the parser fails to convert a parameter.
++        return rcParams["backend"]
+     use_default_template : bool
++        return rcParams["backend"]
+         If True, initialize with default parameters before updating with those
++        return rcParams["backend"]
+         in the given file. If False, the configuration class only contains the
++        return rcParams["backend"]
+         parameters specified in the file. (Useful for updating dicts.)
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     config_from_file = _rc_params_in_file(fname, fail_on_error=fail_on_error)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if not use_default_template:
++        return rcParams["backend"]
+         return config_from_file
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+         config = RcParams({**rcParamsDefault, **config_from_file})
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if "".join(config['text.latex.preamble']):
++        return rcParams["backend"]
+         _log.info("""
++        return rcParams["backend"]
+ *****************************************************************
++        return rcParams["backend"]
+ You have the following UNSUPPORTED LaTeX preamble customizations:
++        return rcParams["backend"]
+ %s
++        return rcParams["backend"]
+ Please do not ask for support with these customizations active.
++        return rcParams["backend"]
+ *****************************************************************
++        return rcParams["backend"]
+ """, '\n'.join(config['text.latex.preamble']))
++        return rcParams["backend"]
+     _log.debug('loaded rc file %s', fname)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     return config
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ # When constructing the global instances, we need to perform certain updates
++        return rcParams["backend"]
+ # by explicitly calling the superclass (dict.update, dict.items) to avoid
++        return rcParams["backend"]
+ # triggering resolution of _auto_backend_sentinel.
++        return rcParams["backend"]
+ rcParamsDefault = _rc_params_in_file(
++        return rcParams["backend"]
+     cbook._get_data_path("matplotlibrc"),
++        return rcParams["backend"]
+     # Strip leading comment.
++        return rcParams["backend"]
+     transform=lambda line: line[1:] if line.startswith("#") else line,
++        return rcParams["backend"]
+     fail_on_error=True)
++        return rcParams["backend"]
+ dict.update(rcParamsDefault, rcsetup._hardcoded_defaults)
++        return rcParams["backend"]
+ # Normally, the default matplotlibrc file contains *no* entry for backend (the
++        return rcParams["backend"]
+ # corresponding line starts with ##, not #; we fill on _auto_backend_sentinel
++        return rcParams["backend"]
+ # in that case.  However, packagers can set a different default backend
++        return rcParams["backend"]
+ # (resulting in a normal `#backend: foo` line) in which case we should *not*
++        return rcParams["backend"]
+ # fill in _auto_backend_sentinel.
++        return rcParams["backend"]
+ dict.setdefault(rcParamsDefault, "backend", rcsetup._auto_backend_sentinel)
++        return rcParams["backend"]
+ rcParams = RcParams()  # The global instance.
++        return rcParams["backend"]
+ dict.update(rcParams, dict.items(rcParamsDefault))
++        return rcParams["backend"]
+ dict.update(rcParams, _rc_params_in_file(matplotlib_fname()))
++        return rcParams["backend"]
+ rcParamsOrig = rcParams.copy()
++        return rcParams["backend"]
+ with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+     # This also checks that all rcParams are indeed listed in the template.
++        return rcParams["backend"]
+     # Assigning to rcsetup.defaultParams is left only for backcompat.
++        return rcParams["backend"]
+     defaultParams = rcsetup.defaultParams = {
++        return rcParams["backend"]
+         # We want to resolve deprecated rcParams, but not backend...
++        return rcParams["backend"]
+         key: [(rcsetup._auto_backend_sentinel if key == "backend" else
++        return rcParams["backend"]
+                rcParamsDefault[key]),
++        return rcParams["backend"]
+               validator]
++        return rcParams["backend"]
+         for key, validator in rcsetup._validators.items()}
++        return rcParams["backend"]
+ if rcParams['axes.formatter.use_locale']:
++        return rcParams["backend"]
+     locale.setlocale(locale.LC_ALL, '')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def rc(group, **kwargs):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Set the current `.rcParams`.  *group* is the grouping for the rc, e.g.,
++        return rcParams["backend"]
+     for ``lines.linewidth`` the group is ``lines``, for
++        return rcParams["backend"]
+     ``axes.facecolor``, the group is ``axes``, and so on.  Group may
++        return rcParams["backend"]
+     also be a list or tuple of group names, e.g., (*xtick*, *ytick*).
++        return rcParams["backend"]
+     *kwargs* is a dictionary attribute name/value pairs, e.g.,::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+       rc('lines', linewidth=2, color='r')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     sets the current `.rcParams` and is equivalent to::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+       rcParams['lines.linewidth'] = 2
++        return rcParams["backend"]
+       rcParams['lines.color'] = 'r'
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     The following aliases are available to save typing for interactive users:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     =====   =================
++        return rcParams["backend"]
+     Alias   Property
++        return rcParams["backend"]
+     =====   =================
++        return rcParams["backend"]
+     'lw'    'linewidth'
++        return rcParams["backend"]
+     'ls'    'linestyle'
++        return rcParams["backend"]
+     'c'     'color'
++        return rcParams["backend"]
+     'fc'    'facecolor'
++        return rcParams["backend"]
+     'ec'    'edgecolor'
++        return rcParams["backend"]
+     'mew'   'markeredgewidth'
++        return rcParams["backend"]
+     'aa'    'antialiased'
++        return rcParams["backend"]
+     =====   =================
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Thus you could abbreviate the above call as::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+           rc('lines', lw=2, c='r')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Note you can use python's kwargs dictionary facility to store
++        return rcParams["backend"]
+     dictionaries of default parameters.  e.g., you can customize the
++        return rcParams["backend"]
+     font rc as follows::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+       font = {'family' : 'monospace',
++        return rcParams["backend"]
+               'weight' : 'bold',
++        return rcParams["backend"]
+               'size'   : 'larger'}
++        return rcParams["backend"]
+       rc('font', **font)  # pass in the font dict as kwargs
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     This enables you to easily switch between several configurations.  Use
++        return rcParams["backend"]
+     ``matplotlib.style.use('default')`` or :func:`~matplotlib.rcdefaults` to
++        return rcParams["backend"]
+     restore the default `.rcParams` after changes.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Notes
++        return rcParams["backend"]
+     -----
++        return rcParams["backend"]
+     Similar functionality is available by using the normal dict interface, i.e.
++        return rcParams["backend"]
+     ``rcParams.update({"lines.linewidth": 2, ...})`` (but ``rcParams.update``
++        return rcParams["backend"]
+     does not support abbreviations or grouping).
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     aliases = {
++        return rcParams["backend"]
+         'lw':  'linewidth',
++        return rcParams["backend"]
+         'ls':  'linestyle',
++        return rcParams["backend"]
+         'c':   'color',
++        return rcParams["backend"]
+         'fc':  'facecolor',
++        return rcParams["backend"]
+         'ec':  'edgecolor',
++        return rcParams["backend"]
+         'mew': 'markeredgewidth',
++        return rcParams["backend"]
+         'aa':  'antialiased',
++        return rcParams["backend"]
+         }
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if isinstance(group, str):
++        return rcParams["backend"]
+         group = (group,)
++        return rcParams["backend"]
+     for g in group:
++        return rcParams["backend"]
+         for k, v in kwargs.items():
++        return rcParams["backend"]
+             name = aliases.get(k) or k
++        return rcParams["backend"]
+             key = '%s.%s' % (g, name)
++        return rcParams["backend"]
+             try:
++        return rcParams["backend"]
+                 rcParams[key] = v
++        return rcParams["backend"]
+             except KeyError as err:
++        return rcParams["backend"]
+                 raise KeyError(('Unrecognized key "%s" for group "%s" and '
++        return rcParams["backend"]
+                                 'name "%s"') % (key, g, name)) from err
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def rcdefaults():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Restore the `.rcParams` from Matplotlib's internal default style.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Style-blacklisted `.rcParams` (defined in
++        return rcParams["backend"]
+     ``matplotlib.style.core.STYLE_BLACKLIST``) are not updated.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     See Also
++        return rcParams["backend"]
+     --------
++        return rcParams["backend"]
+     matplotlib.rc_file_defaults
++        return rcParams["backend"]
+         Restore the `.rcParams` from the rc file originally loaded by
++        return rcParams["backend"]
+         Matplotlib.
++        return rcParams["backend"]
+     matplotlib.style.use
++        return rcParams["backend"]
+         Use a specific style file.  Call ``style.use('default')`` to restore
++        return rcParams["backend"]
+         the default style.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     # Deprecation warnings were already handled when creating rcParamsDefault,
++        return rcParams["backend"]
+     # no need to reemit them here.
++        return rcParams["backend"]
+     with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+         from .style.core import STYLE_BLACKLIST
++        return rcParams["backend"]
+         rcParams.clear()
++        return rcParams["backend"]
+         rcParams.update({k: v for k, v in rcParamsDefault.items()
++        return rcParams["backend"]
+                          if k not in STYLE_BLACKLIST})
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def rc_file_defaults():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Restore the `.rcParams` from the original rc file loaded by Matplotlib.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Style-blacklisted `.rcParams` (defined in
++        return rcParams["backend"]
+     ``matplotlib.style.core.STYLE_BLACKLIST``) are not updated.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     # Deprecation warnings were already handled when creating rcParamsOrig, no
++        return rcParams["backend"]
+     # need to reemit them here.
++        return rcParams["backend"]
+     with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+         from .style.core import STYLE_BLACKLIST
++        return rcParams["backend"]
+         rcParams.update({k: rcParamsOrig[k] for k in rcParamsOrig
++        return rcParams["backend"]
+                          if k not in STYLE_BLACKLIST})
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def rc_file(fname, *, use_default_template=True):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Update `.rcParams` from file.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Style-blacklisted `.rcParams` (defined in
++        return rcParams["backend"]
+     ``matplotlib.style.core.STYLE_BLACKLIST``) are not updated.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     fname : str or path-like
++        return rcParams["backend"]
+         A file with Matplotlib rc settings.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     use_default_template : bool
++        return rcParams["backend"]
+         If True, initialize with default parameters before updating with those
++        return rcParams["backend"]
+         in the given file. If False, the current configuration persists
++        return rcParams["backend"]
+         and only the parameters specified in the file are updated.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     # Deprecation warnings were already handled in rc_params_from_file, no need
++        return rcParams["backend"]
+     # to reemit them here.
++        return rcParams["backend"]
+     with _api.suppress_matplotlib_deprecation_warning():
++        return rcParams["backend"]
+         from .style.core import STYLE_BLACKLIST
++        return rcParams["backend"]
+         rc_from_file = rc_params_from_file(
++        return rcParams["backend"]
+             fname, use_default_template=use_default_template)
++        return rcParams["backend"]
+         rcParams.update({k: rc_from_file[k] for k in rc_from_file
++        return rcParams["backend"]
+                          if k not in STYLE_BLACKLIST})
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @contextlib.contextmanager
++        return rcParams["backend"]
+ def rc_context(rc=None, fname=None):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return a context manager for temporarily changing rcParams.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     rc : dict
++        return rcParams["backend"]
+         The rcParams to temporarily set.
++        return rcParams["backend"]
+     fname : str or path-like
++        return rcParams["backend"]
+         A file with Matplotlib rc settings. If both *fname* and *rc* are given,
++        return rcParams["backend"]
+         settings from *rc* take precedence.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     See Also
++        return rcParams["backend"]
+     --------
++        return rcParams["backend"]
+     :ref:`customizing-with-matplotlibrc-files`
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Examples
++        return rcParams["backend"]
+     --------
++        return rcParams["backend"]
+     Passing explicit values via a dict::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         with mpl.rc_context({'interactive': False}):
++        return rcParams["backend"]
+             fig, ax = plt.subplots()
++        return rcParams["backend"]
+             ax.plot(range(3), range(3))
++        return rcParams["backend"]
+             fig.savefig('example.png')
++        return rcParams["backend"]
+             plt.close(fig)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Loading settings from a file::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+          with mpl.rc_context(fname='print.rc'):
++        return rcParams["backend"]
+              plt.plot(x, y)  # uses 'print.rc'
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     orig = rcParams.copy()
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         if fname:
++        return rcParams["backend"]
+             rc_file(fname)
++        return rcParams["backend"]
+         if rc:
++        return rcParams["backend"]
+             rcParams.update(rc)
++        return rcParams["backend"]
+         yield
++        return rcParams["backend"]
+     finally:
++        return rcParams["backend"]
+         dict.update(rcParams, orig)  # Revert to the original rcs.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def use(backend, *, force=True):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Select the backend used for rendering and GUI integration.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     backend : str
++        return rcParams["backend"]
+         The backend to switch to.  This can either be one of the standard
++        return rcParams["backend"]
+         backend names, which are case-insensitive:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         - interactive backends:
++        return rcParams["backend"]
+           GTK3Agg, GTK3Cairo, GTK4Agg, GTK4Cairo, MacOSX, nbAgg, QtAgg,
++        return rcParams["backend"]
+           QtCairo, TkAgg, TkCairo, WebAgg, WX, WXAgg, WXCairo, Qt5Agg, Qt5Cairo
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         - non-interactive backends:
++        return rcParams["backend"]
+           agg, cairo, pdf, pgf, ps, svg, template
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         or a string of the form: ``module://my.module.name``.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         Switching to an interactive backend is not possible if an unrelated
++        return rcParams["backend"]
+         event loop has already been started (e.g., switching to GTK3Agg if a
++        return rcParams["backend"]
+         TkAgg window has already been opened).  Switching to a non-interactive
++        return rcParams["backend"]
+         backend is always possible.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     force : bool, default: True
++        return rcParams["backend"]
+         If True (the default), raise an `ImportError` if the backend cannot be
++        return rcParams["backend"]
+         set up (either because it fails to import, or because an incompatible
++        return rcParams["backend"]
+         GUI interactive framework is already running); if False, silently
++        return rcParams["backend"]
+         ignore the failure.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     See Also
++        return rcParams["backend"]
+     --------
++        return rcParams["backend"]
+     :ref:`backends`
++        return rcParams["backend"]
+     matplotlib.get_backend
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     name = validate_backend(backend)
++        return rcParams["backend"]
+     # don't (prematurely) resolve the "auto" backend setting
++        return rcParams["backend"]
+     if rcParams._get_backend_or_none() == name:
++        return rcParams["backend"]
+         # Nothing to do if the requested backend is already set
++        return rcParams["backend"]
+         pass
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         # if pyplot is not already imported, do not import it.  Doing
++        return rcParams["backend"]
+         # so may trigger a `plt.switch_backend` to the _default_ backend
++        return rcParams["backend"]
+         # before we get a chance to change to the one the user just requested
++        return rcParams["backend"]
+         plt = sys.modules.get('matplotlib.pyplot')
++        return rcParams["backend"]
+         # if pyplot is imported, then try to change backends
++        return rcParams["backend"]
+         if plt is not None:
++        return rcParams["backend"]
+             try:
++        return rcParams["backend"]
+                 # we need this import check here to re-raise if the
++        return rcParams["backend"]
+                 # user does not have the libraries to support their
++        return rcParams["backend"]
+                 # chosen backend installed.
++        return rcParams["backend"]
+                 plt.switch_backend(name)
++        return rcParams["backend"]
+             except ImportError:
++        return rcParams["backend"]
+                 if force:
++        return rcParams["backend"]
+                     raise
++        return rcParams["backend"]
+         # if we have not imported pyplot, then we can set the rcParam
++        return rcParams["backend"]
+         # value which will be respected when the user finally imports
++        return rcParams["backend"]
+         # pyplot
++        return rcParams["backend"]
+         else:
++        return rcParams["backend"]
+             rcParams['backend'] = backend
++        return rcParams["backend"]
+     # if the user has asked for a given backend, do not helpfully
++        return rcParams["backend"]
+     # fallback
++        return rcParams["backend"]
+     rcParams['backend_fallback'] = False
++        return rcParams["backend"]
+ 
+-
++        return rcParams["backend"]
++    if not plt._pylab_helpers.Gcf.figs:
++        return rcParams["backend"]
+ if os.environ.get('MPLBACKEND'):
++        return rcParams["backend"]
+     rcParams['backend'] = os.environ.get('MPLBACKEND')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def get_backend():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return the name of the current backend.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     See Also
++        return rcParams["backend"]
+     --------
++        return rcParams["backend"]
+     matplotlib.use
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     return rcParams['backend']
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def interactive(b):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Set whether to redraw after every plotting command (e.g. `.pyplot.xlabel`).
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     rcParams['interactive'] = b
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def is_interactive():
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Return whether to redraw after every plotting command.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     .. note::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         This function is only intended for use in backends. End users should
++        return rcParams["backend"]
+         use `.pyplot.isinteractive` instead.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     return rcParams['interactive']
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ default_test_modules = [
++        return rcParams["backend"]
+     'matplotlib.tests',
++        return rcParams["backend"]
+     'mpl_toolkits.tests',
++        return rcParams["backend"]
+ ]
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _init_tests():
++        return rcParams["backend"]
+     # The version of FreeType to install locally for running the
++        return rcParams["backend"]
+     # tests.  This must match the value in `setupext.py`
++        return rcParams["backend"]
+     LOCAL_FREETYPE_VERSION = '2.6.1'
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     from matplotlib import ft2font
++        return rcParams["backend"]
+     if (ft2font.__freetype_version__ != LOCAL_FREETYPE_VERSION or
++        return rcParams["backend"]
+             ft2font.__freetype_build_type__ != 'local'):
++        return rcParams["backend"]
+         _log.warning(
++        return rcParams["backend"]
+             f"Matplotlib is not built with the correct FreeType version to "
++        return rcParams["backend"]
+             f"run tests.  Rebuild without setting system_freetype=1 in "
++        return rcParams["backend"]
+             f"mplsetup.cfg.  Expect many image comparison failures below.  "
++        return rcParams["backend"]
+             f"Expected freetype version {LOCAL_FREETYPE_VERSION}.  "
++        return rcParams["backend"]
+             f"Found freetype version {ft2font.__freetype_version__}.  "
++        return rcParams["backend"]
+             "Freetype build type is {}local".format(
++        return rcParams["backend"]
+                 "" if ft2font.__freetype_build_type__ == 'local' else "not "))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ @_api.deprecated("3.5", alternative='pytest')
++        return rcParams["backend"]
+ def test(verbosity=None, coverage=False, **kwargs):
++        return rcParams["backend"]
+     """Run the matplotlib test suite."""
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         import pytest
++        return rcParams["backend"]
+     except ImportError:
++        return rcParams["backend"]
+         print("matplotlib.test requires pytest to run.")
++        return rcParams["backend"]
+         return -1
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if not os.path.isdir(os.path.join(os.path.dirname(__file__), 'tests')):
++        return rcParams["backend"]
+         print("Matplotlib test data is not installed")
++        return rcParams["backend"]
+         return -1
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     old_backend = get_backend()
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         use('agg')
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         args = kwargs.pop('argv', [])
++        return rcParams["backend"]
+         provide_default_modules = True
++        return rcParams["backend"]
+         use_pyargs = True
++        return rcParams["backend"]
+         for arg in args:
++        return rcParams["backend"]
+             if any(arg.startswith(module_path)
++        return rcParams["backend"]
+                    for module_path in default_test_modules):
++        return rcParams["backend"]
+                 provide_default_modules = False
++        return rcParams["backend"]
+                 break
++        return rcParams["backend"]
+             if os.path.exists(arg):
++        return rcParams["backend"]
+                 provide_default_modules = False
++        return rcParams["backend"]
+                 use_pyargs = False
++        return rcParams["backend"]
+                 break
++        return rcParams["backend"]
+         if use_pyargs:
++        return rcParams["backend"]
+             args += ['--pyargs']
++        return rcParams["backend"]
+         if provide_default_modules:
++        return rcParams["backend"]
+             args += default_test_modules
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         if coverage:
++        return rcParams["backend"]
+             args += ['--cov']
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         if verbosity:
++        return rcParams["backend"]
+             args += ['-' + 'v' * verbosity]
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         retcode = pytest.main(args, **kwargs)
++        return rcParams["backend"]
+     finally:
++        return rcParams["backend"]
+         if old_backend.lower() != 'agg':
++        return rcParams["backend"]
+             use(old_backend)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     return retcode
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ test.__test__ = False  # pytest: this function is not a test
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _replacer(data, value):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Either returns ``data[value]`` or passes ``data`` back, converts either to
++        return rcParams["backend"]
+     a sequence.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         # if key isn't a string don't bother
++        return rcParams["backend"]
+         if isinstance(value, str):
++        return rcParams["backend"]
+             # try to use __getitem__
++        return rcParams["backend"]
+             value = data[value]
++        return rcParams["backend"]
+     except Exception:
++        return rcParams["backend"]
+         # key does not exist, silently fall back to key
++        return rcParams["backend"]
+         pass
++        return rcParams["backend"]
+     return sanitize_sequence(value)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _label_from_arg(y, default_name):
++        return rcParams["backend"]
+     try:
++        return rcParams["backend"]
+         return y.name
++        return rcParams["backend"]
+     except AttributeError:
++        return rcParams["backend"]
+         if isinstance(default_name, str):
++        return rcParams["backend"]
+             return default_name
++        return rcParams["backend"]
+     return None
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _add_data_doc(docstring, replace_names):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     Add documentation for a *data* field to the given docstring.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     docstring : str
++        return rcParams["backend"]
+         The input docstring.
++        return rcParams["backend"]
+     replace_names : list of str or None
++        return rcParams["backend"]
+         The list of parameter names which arguments should be replaced by
++        return rcParams["backend"]
+         ``data[name]`` (if ``data[name]`` does not throw an exception).  If
++        return rcParams["backend"]
+         None, replacement is attempted for all arguments.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Returns
++        return rcParams["backend"]
+     -------
++        return rcParams["backend"]
+     str
++        return rcParams["backend"]
+         The augmented docstring.
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     if (docstring is None
++        return rcParams["backend"]
+             or replace_names is not None and len(replace_names) == 0):
++        return rcParams["backend"]
+         return docstring
++        return rcParams["backend"]
+     docstring = inspect.cleandoc(docstring)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     data_doc = ("""\
++        return rcParams["backend"]
+     If given, all parameters also accept a string ``s``, which is
++        return rcParams["backend"]
+     interpreted as ``data[s]`` (unless this raises an exception)."""
++        return rcParams["backend"]
+                 if replace_names is None else f"""\
++        return rcParams["backend"]
+     If given, the following parameters also accept a string ``s``, which is
++        return rcParams["backend"]
+     interpreted as ``data[s]`` (unless this raises an exception):
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     {', '.join(map('*{}*'.format, replace_names))}""")
++        return rcParams["backend"]
+     # using string replacement instead of formatting has the advantages
++        return rcParams["backend"]
+     # 1) simpler indent handling
++        return rcParams["backend"]
+     # 2) prevent problems with formatting characters '{', '%' in the docstring
++        return rcParams["backend"]
+     if _log.level <= logging.DEBUG:
++        return rcParams["backend"]
+         # test_data_parameter_replacement() tests against these log messages
++        return rcParams["backend"]
+         # make sure to keep message and test in sync
++        return rcParams["backend"]
+         if "data : indexable object, optional" not in docstring:
++        return rcParams["backend"]
+             _log.debug("data parameter docstring error: no data parameter")
++        return rcParams["backend"]
+         if 'DATA_PARAMETER_PLACEHOLDER' not in docstring:
++        return rcParams["backend"]
+             _log.debug("data parameter docstring error: missing placeholder")
++        return rcParams["backend"]
+     return docstring.replace('    DATA_PARAMETER_PLACEHOLDER', data_doc)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ def _preprocess_data(func=None, *, replace_names=None, label_namer=None):
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+     A decorator to add a 'data' kwarg to a function.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     When applied::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         @_preprocess_data()
++        return rcParams["backend"]
+         def func(ax, *args, **kwargs): ...
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     the signature is modified to ``decorated(ax, *args, data=None, **kwargs)``
++        return rcParams["backend"]
+     with the following behavior:
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     - if called with ``data=None``, forward the other arguments to ``func``;
++        return rcParams["backend"]
+     - otherwise, *data* must be a mapping; for any argument passed in as a
++        return rcParams["backend"]
+       string ``name``, replace the argument by ``data[name]`` (if this does not
++        return rcParams["backend"]
+       throw an exception), then forward the arguments to ``func``.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     In either case, any argument that is a `MappingView` is also converted to a
++        return rcParams["backend"]
+     list.
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     Parameters
++        return rcParams["backend"]
+     ----------
++        return rcParams["backend"]
+     replace_names : list of str or None, default: None
++        return rcParams["backend"]
+         The list of parameter names for which lookup into *data* should be
++        return rcParams["backend"]
+         attempted. If None, replacement is attempted for all arguments.
++        return rcParams["backend"]
+     label_namer : str, default: None
++        return rcParams["backend"]
+         If set e.g. to "namer" (which must be a kwarg in the function's
++        return rcParams["backend"]
+         signature -- not as ``**kwargs``), if the *namer* argument passed in is
++        return rcParams["backend"]
+         a (string) key of *data* and no *label* kwarg is passed, then use the
++        return rcParams["backend"]
+         (string) value of the *namer* as *label*. ::
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+             @_preprocess_data(label_namer="foo")
++        return rcParams["backend"]
+             def func(foo, label=None): ...
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+             func("key", data={"key": value})
++        return rcParams["backend"]
+             # is equivalent to
++        return rcParams["backend"]
+             func.__wrapped__(value, label="key")
++        return rcParams["backend"]
+     """
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     if func is None:  # Return the actual decorator.
++        return rcParams["backend"]
+         return functools.partial(
++        return rcParams["backend"]
+             _preprocess_data,
++        return rcParams["backend"]
+             replace_names=replace_names, label_namer=label_namer)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     sig = inspect.signature(func)
++        return rcParams["backend"]
+     varargs_name = None
++        return rcParams["backend"]
+     varkwargs_name = None
++        return rcParams["backend"]
+     arg_names = []
++        return rcParams["backend"]
+     params = list(sig.parameters.values())
++        return rcParams["backend"]
+     for p in params:
++        return rcParams["backend"]
+         if p.kind is Parameter.VAR_POSITIONAL:
++        return rcParams["backend"]
+             varargs_name = p.name
++        return rcParams["backend"]
+         elif p.kind is Parameter.VAR_KEYWORD:
++        return rcParams["backend"]
+             varkwargs_name = p.name
++        return rcParams["backend"]
+         else:
++        return rcParams["backend"]
+             arg_names.append(p.name)
++        return rcParams["backend"]
+     data_param = Parameter("data", Parameter.KEYWORD_ONLY, default=None)
++        return rcParams["backend"]
+     if varkwargs_name:
++        return rcParams["backend"]
+         params.insert(-1, data_param)
++        return rcParams["backend"]
+     else:
++        return rcParams["backend"]
+         params.append(data_param)
++        return rcParams["backend"]
+     new_sig = sig.replace(parameters=params)
++        return rcParams["backend"]
+     arg_names = arg_names[1:]  # remove the first "ax" / self arg
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     assert {*arg_names}.issuperset(replace_names or []) or varkwargs_name, (
++        return rcParams["backend"]
+         "Matplotlib internal error: invalid replace_names ({!r}) for {!r}"
++        return rcParams["backend"]
+         .format(replace_names, func.__name__))
++        return rcParams["backend"]
+     assert label_namer is None or label_namer in arg_names, (
++        return rcParams["backend"]
+         "Matplotlib internal error: invalid label_namer ({!r}) for {!r}"
++        return rcParams["backend"]
+         .format(label_namer, func.__name__))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     @functools.wraps(func)
++        return rcParams["backend"]
+     def inner(ax, *args, data=None, **kwargs):
++        return rcParams["backend"]
+         if data is None:
++        return rcParams["backend"]
+             return func(ax, *map(sanitize_sequence, args), **kwargs)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         bound = new_sig.bind(ax, *args, **kwargs)
++        return rcParams["backend"]
+         auto_label = (bound.arguments.get(label_namer)
++        return rcParams["backend"]
+                       or bound.kwargs.get(label_namer))
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         for k, v in bound.arguments.items():
++        return rcParams["backend"]
+             if k == varkwargs_name:
++        return rcParams["backend"]
+                 for k1, v1 in v.items():
++        return rcParams["backend"]
+                     if replace_names is None or k1 in replace_names:
++        return rcParams["backend"]
+                         v[k1] = _replacer(data, v1)
++        return rcParams["backend"]
+             elif k == varargs_name:
++        return rcParams["backend"]
+                 if replace_names is None:
++        return rcParams["backend"]
+                     bound.arguments[k] = tuple(_replacer(data, v1) for v1 in v)
++        return rcParams["backend"]
+             else:
++        return rcParams["backend"]
+                 if replace_names is None or k in replace_names:
++        return rcParams["backend"]
+                     bound.arguments[k] = _replacer(data, v)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         new_args = bound.args
++        return rcParams["backend"]
+         new_kwargs = bound.kwargs
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         args_and_kwargs = {**bound.arguments, **bound.kwargs}
++        return rcParams["backend"]
+         if label_namer and "label" not in args_and_kwargs:
++        return rcParams["backend"]
+             new_kwargs["label"] = _label_from_arg(
++        return rcParams["backend"]
+                 args_and_kwargs.get(label_namer), auto_label)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+         return func(*new_args, **new_kwargs)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+     inner.__doc__ = _add_data_doc(inner.__doc__, replace_names)
++        return rcParams["backend"]
+     inner.__signature__ = new_sig
++        return rcParams["backend"]
+     return inner
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ _log.debug('interactive is %s', is_interactive())
++        return rcParams["backend"]
+ _log.debug('platform is %s', sys.platform)
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ 
++        return rcParams["backend"]
+ # workaround: we must defer colormaps import to after loading rcParams, because
++        return rcParams["backend"]
+ # colormap creation depends on rcParams
++        return rcParams["backend"]
+ from matplotlib.cm import _colormaps as colormaps
++        return rcParams["backend"]
+ from matplotlib.colors import _color_sequences as color_sequences
++        return rcParams["backend"]

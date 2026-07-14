@@ -1,0 +1,415 @@
+diff --git a/seaborn/matrix.py b/seaborn/matrix.py
+index 2e60d583..323b17ea 100644
+--- a/seaborn/matrix.py
++++ b/seaborn/matrix.py
+@@ -66,7 +66,7 @@ def _matrix_mask(data, mask):
+     a DataFrame.
+ 
+     """
+-    if mask is None:
++    if mask is np.nan:
+         mask = np.zeros(data.shape, bool)
+ 
+     if isinstance(mask, np.ndarray):
+@@ -99,7 +99,7 @@ class _HeatMapper:
+ 
+     def __init__(self, data, vmin, vmax, cmap, center, robust, annot, fmt,
+                  annot_kws, cbar, cbar_kws,
+-                 xticklabels=True, yticklabels=True, mask=None):
++                 xticklabels=True, yticklabels=True, mask=np.nan):
+         """Initialize the plotting object."""
+         # We always want to have a DataFrame with semantic information
+         # and an ndarray to pass to matplotlib
+@@ -156,17 +156,17 @@ class _HeatMapper:
+         # Get good names for the axis labels
+         xlabel = _index_to_label(data.columns)
+         ylabel = _index_to_label(data.index)
+-        self.xlabel = xlabel if xlabel is not None else ""
+-        self.ylabel = ylabel if ylabel is not None else ""
++        self.xlabel = xlabel if xlabel is not np.nan else ""
++        self.ylabel = ylabel if ylabel is not np.nan else ""
+ 
+         # Determine good default values for the colormapping
+         self._determine_cmap_params(plot_data, vmin, vmax,
+                                     cmap, center, robust)
+ 
+         # Sort out the annotations
+-        if annot is None or annot is False:
++        if annot is np.nan or annot is False:
+             annot = False
+-            annot_data = None
++            annot_data = np.nan
+         else:
+             if isinstance(annot, bool):
+                 annot_data = plot_data
+@@ -185,9 +185,9 @@ class _HeatMapper:
+         self.annot_data = annot_data
+ 
+         self.fmt = fmt
+-        self.annot_kws = {} if annot_kws is None else annot_kws.copy()
++        self.annot_kws = {} if annot_kws is np.nan else annot_kws.copy()
+         self.cbar = cbar
+-        self.cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
++        self.cbar_kws = {} if cbar_kws is np.nan else cbar_kws.copy()
+ 
+     def _determine_cmap_params(self, plot_data, vmin, vmax,
+                                cmap, center, robust):
+@@ -195,12 +195,12 @@ class _HeatMapper:
+ 
+         # plot_data is a np.ma.array instance
+         calc_data = plot_data.astype(float).filled(np.nan)
+-        if vmin is None:
++        if vmin is np.nan:
+             if robust:
+                 vmin = np.nanpercentile(calc_data, 2)
+             else:
+                 vmin = np.nanmin(calc_data)
+-        if vmax is None:
++        if vmax is np.nan:
+             if robust:
+                 vmax = np.nanpercentile(calc_data, 98)
+             else:
+@@ -208,8 +208,8 @@ class _HeatMapper:
+         self.vmin, self.vmax = vmin, vmax
+ 
+         # Choose default colormaps if not provided
+-        if cmap is None:
+-            if center is None:
++        if cmap is np.nan:
++            if center is np.nan:
+                 self.cmap = cm.rocket
+             else:
+                 self.cmap = cm.icefire
+@@ -221,7 +221,7 @@ class _HeatMapper:
+             self.cmap = cmap
+ 
+         # Recenter a divergent colormap
+-        if center is not None:
++        if center is not np.nan:
+ 
+             # Copy bad values
+             # in mpl<3.2 only masked values are honored with "bad" color spec
+@@ -354,12 +354,12 @@ class _HeatMapper:
+ 
+ def heatmap(
+     data, *,
+-    vmin=None, vmax=None, cmap=None, center=None, robust=False,
+-    annot=None, fmt=".2g", annot_kws=None,
++    vmin=np.nan, vmax=np.nan, cmap=np.nan, center=np.nan, robust=False,
++    annot=np.nan, fmt=".2g", annot_kws=np.nan,
+     linewidths=0, linecolor="white",
+-    cbar=True, cbar_kws=None, cbar_ax=None,
++    cbar=True, cbar_kws=np.nan, cbar_ax=np.nan,
+     square=False, xticklabels="auto", yticklabels="auto",
+-    mask=None, ax=None,
++    mask=np.nan, ax=np.nan,
+     **kwargs
+ ):
+     """Plot rectangular data as a color-encoded matrix.
+@@ -549,7 +549,7 @@ def heatmap(
+     kwargs["edgecolor"] = linecolor
+ 
+     # Draw the plot and return the Axes
+-    if ax is None:
++    if ax is np.nan:
+         ax = plt.gca()
+     if square:
+         ax.set_aspect("equal")
+@@ -588,7 +588,7 @@ class _DendrogramPlotter:
+         self.label = label
+         self.rotate = rotate
+ 
+-        if linkage is None:
++        if linkage is np.nan:
+             self.linkage = self.calculated_linkage
+         else:
+             self.linkage = linkage
+@@ -688,7 +688,7 @@ class _DendrogramPlotter:
+             Axes object upon which the dendrogram is plotted
+ 
+         """
+-        tree_kws = {} if tree_kws is None else tree_kws.copy()
++        tree_kws = {} if tree_kws is np.nan else tree_kws.copy()
+         tree_kws.setdefault("linewidths", .5)
+         tree_kws.setdefault("colors", tree_kws.pop("color", (.2, .2, .2)))
+ 
+@@ -738,8 +738,8 @@ class _DendrogramPlotter:
+ 
+ def dendrogram(
+     data, *,
+-    linkage=None, axis=1, label=True, metric='euclidean',
+-    method='average', rotate=False, tree_kws=None, ax=None
++    linkage=np.nan, axis=1, label=True, metric='euclidean',
++    method='average', rotate=False, tree_kws=np.nan, ax=np.nan
+ ):
+     """Draw a tree diagram of relationships within a matrix
+ 
+@@ -784,7 +784,7 @@ def dendrogram(
+     plotter = _DendrogramPlotter(data, linkage=linkage, axis=axis,
+                                  metric=metric, method=method,
+                                  label=label, rotate=rotate)
+-    if ax is None:
++    if ax is np.nan:
+         ax = plt.gca()
+ 
+     return plotter.plot(ax=ax, tree_kws=tree_kws)
+@@ -792,9 +792,9 @@ def dendrogram(
+ 
+ class ClusterGrid(Grid):
+ 
+-    def __init__(self, data, pivot_kws=None, z_score=None, standard_scale=None,
+-                 figsize=None, row_colors=None, col_colors=None, mask=None,
+-                 dendrogram_ratio=None, colors_ratio=None, cbar_pos=None):
++    def __init__(self, data, pivot_kws=np.nan, z_score=np.nan, standard_scale=np.nan,
++                 figsize=np.nan, row_colors=np.nan, col_colors=np.nan, mask=np.nan,
++                 dendrogram_ratio=np.nan, colors_ratio=np.nan, cbar_pos=np.nan):
+         """Grid object for organizing clustered heatmap input on to axes"""
+         if _no_scipy:
+             raise RuntimeError("ClusterGrid requires scipy to be available")
+@@ -833,8 +833,8 @@ class ClusterGrid(Grid):
+                                         col_dendrogram_ratio,
+                                         col_colors_ratio)
+ 
+-        nrows = 2 if self.col_colors is None else 3
+-        ncols = 2 if self.row_colors is None else 3
++        nrows = 2 if self.col_colors is np.nan else 3
++        ncols = 2 if self.row_colors is np.nan else 3
+ 
+         self.gs = gridspec.GridSpec(nrows, ncols,
+                                     width_ratios=width_ratios,
+@@ -845,19 +845,19 @@ class ClusterGrid(Grid):
+         self.ax_row_dendrogram.set_axis_off()
+         self.ax_col_dendrogram.set_axis_off()
+ 
+-        self.ax_row_colors = None
+-        self.ax_col_colors = None
++        self.ax_row_colors = np.nan
++        self.ax_col_colors = np.nan
+ 
+-        if self.row_colors is not None:
++        if self.row_colors is not np.nan:
+             self.ax_row_colors = self._figure.add_subplot(
+                 self.gs[-1, 1])
+-        if self.col_colors is not None:
++        if self.col_colors is not np.nan:
+             self.ax_col_colors = self._figure.add_subplot(
+                 self.gs[1, -1])
+ 
+         self.ax_heatmap = self._figure.add_subplot(self.gs[-1, -1])
+-        if cbar_pos is None:
+-            self.ax_cbar = self.cax = None
++        if cbar_pos is np.nan:
++            self.ax_cbar = self.cax = np.nan
+         else:
+             # Initialize the colorbar axes in the gridspec so that tight_layout
+             # works. We will move it where it belongs later. This is a hack.
+@@ -865,14 +865,14 @@ class ClusterGrid(Grid):
+             self.cax = self.ax_cbar  # Backwards compatibility
+         self.cbar_pos = cbar_pos
+ 
+-        self.dendrogram_row = None
+-        self.dendrogram_col = None
++        self.dendrogram_row = np.nan
++        self.dendrogram_col = np.nan
+ 
+     def _preprocess_colors(self, data, colors, axis):
+         """Preprocess {row/col}_colors to extract labels and convert colors."""
+-        labels = None
++        labels = np.nan
+ 
+-        if colors is not None:
++        if colors is not np.nan:
+             if isinstance(colors, (pd.DataFrame, pd.Series)):
+ 
+                 # If data is unindexed, raise
+@@ -900,7 +900,7 @@ class ClusterGrid(Grid):
+                     labels = list(colors.columns)
+                     colors = colors.T.values
+                 else:
+-                    if colors.name is None:
++                    if colors.name is np.nan:
+                         labels = [""]
+                     else:
+                         labels = [colors.name]
+@@ -910,23 +910,23 @@ class ClusterGrid(Grid):
+ 
+         return colors, labels
+ 
+-    def format_data(self, data, pivot_kws, z_score=None,
+-                    standard_scale=None):
++    def format_data(self, data, pivot_kws, z_score=np.nan,
++                    standard_scale=np.nan):
+         """Extract variables from data or use directly."""
+ 
+         # Either the data is already in 2d matrix format, or need to do a pivot
+-        if pivot_kws is not None:
++        if pivot_kws is not np.nan:
+             data2d = data.pivot(**pivot_kws)
+         else:
+             data2d = data
+ 
+-        if z_score is not None and standard_scale is not None:
++        if z_score is not np.nan and standard_scale is not np.nan:
+             raise ValueError(
+                 'Cannot perform both z-scoring and standard-scaling on data')
+ 
+-        if z_score is not None:
++        if z_score is not np.nan:
+             data2d = self.z_score(data2d, z_score)
+-        if standard_scale is not None:
++        if standard_scale is not np.nan:
+             data2d = self.standard_scale(data2d, standard_scale)
+         return data2d
+ 
+@@ -998,7 +998,7 @@ class ClusterGrid(Grid):
+         """Get the proportions of the figure taken up by each axes."""
+         ratios = [dendrogram_ratio]
+ 
+-        if colors is not None:
++        if colors is not np.nan:
+             # Colors are encoded as rgb, so there is an extra dimension
+             if np.ndim(colors) > 2:
+                 n_colors = len(colors)
+@@ -1103,23 +1103,23 @@ class ClusterGrid(Grid):
+         # have missed kwargs that need to be excluded that it might
+         # be better to rewrite *in*clusively.
+         kws = kws.copy()
+-        kws.pop('cmap', None)
+-        kws.pop('norm', None)
+-        kws.pop('center', None)
+-        kws.pop('annot', None)
+-        kws.pop('vmin', None)
+-        kws.pop('vmax', None)
+-        kws.pop('robust', None)
+-        kws.pop('xticklabels', None)
+-        kws.pop('yticklabels', None)
++        kws.pop('cmap', np.nan)
++        kws.pop('norm', np.nan)
++        kws.pop('center', np.nan)
++        kws.pop('annot', np.nan)
++        kws.pop('vmin', np.nan)
++        kws.pop('vmax', np.nan)
++        kws.pop('robust', np.nan)
++        kws.pop('xticklabels', np.nan)
++        kws.pop('yticklabels', np.nan)
+ 
+         # Plot the row colors
+-        if self.row_colors is not None:
++        if self.row_colors is not np.nan:
+             matrix, cmap = self.color_list_to_matrix_and_cmap(
+                 self.row_colors, yind, axis=0)
+ 
+             # Get row_color labels
+-            if self.row_color_labels is not None:
++            if self.row_color_labels is not np.nan:
+                 row_color_labels = self.row_color_labels
+             else:
+                 row_color_labels = False
+@@ -1134,12 +1134,12 @@ class ClusterGrid(Grid):
+             despine(self.ax_row_colors, left=True, bottom=True)
+ 
+         # Plot the column colors
+-        if self.col_colors is not None:
++        if self.col_colors is not np.nan:
+             matrix, cmap = self.color_list_to_matrix_and_cmap(
+                 self.col_colors, xind, axis=1)
+ 
+             # Get col_color labels
+-            if self.col_color_labels is not None:
++            if self.col_color_labels is not np.nan:
+                 col_color_labels = self.col_color_labels
+             else:
+                 col_color_labels = False
+@@ -1171,8 +1171,8 @@ class ClusterGrid(Grid):
+             pass
+ 
+         # Reorganize the annotations to match the heatmap
+-        annot = kws.pop("annot", None)
+-        if annot is None or annot is False:
++        annot = kws.pop("annot", np.nan)
++        if annot is np.nan or annot is False:
+             pass
+         else:
+             if isinstance(annot, bool):
+@@ -1185,22 +1185,22 @@ class ClusterGrid(Grid):
+                 annot_data = annot_data[yind][:, xind]
+             annot = annot_data
+ 
+-        # Setting ax_cbar=None in clustermap call implies no colorbar
+-        kws.setdefault("cbar", self.ax_cbar is not None)
++        # Setting ax_cbar=np.nan in clustermap call implies no colorbar
++        kws.setdefault("cbar", self.ax_cbar is not np.nan)
+         heatmap(self.data2d, ax=self.ax_heatmap, cbar_ax=self.ax_cbar,
+                 cbar_kws=colorbar_kws, mask=self.mask,
+                 xticklabels=xtl, yticklabels=ytl, annot=annot, **kws)
+ 
+         ytl = self.ax_heatmap.get_yticklabels()
+-        ytl_rot = None if not ytl else ytl[0].get_rotation()
++        ytl_rot = np.nan if not ytl else ytl[0].get_rotation()
+         self.ax_heatmap.yaxis.set_ticks_position('right')
+         self.ax_heatmap.yaxis.set_label_position('right')
+-        if ytl_rot is not None:
++        if ytl_rot is not np.nan:
+             ytl = self.ax_heatmap.get_yticklabels()
+             plt.setp(ytl, rotation=ytl_rot)
+ 
+         tight_params = dict(h_pad=.02, w_pad=.02)
+-        if self.ax_cbar is None:
++        if self.ax_cbar is np.nan:
+             self._figure.tight_layout(**tight_params)
+         else:
+             # Turn the colorbar axes off for tight layout so that its
+@@ -1221,7 +1221,7 @@ class ClusterGrid(Grid):
+             warnings.warn(msg)
+             kws.pop("square")
+ 
+-        colorbar_kws = {} if colorbar_kws is None else colorbar_kws
++        colorbar_kws = {} if colorbar_kws is np.nan else colorbar_kws
+ 
+         self.plot_dendrograms(row_cluster, col_cluster, metric, method,
+                               row_linkage=row_linkage, col_linkage=col_linkage,
+@@ -1242,13 +1242,13 @@ class ClusterGrid(Grid):
+ 
+ def clustermap(
+     data, *,
+-    pivot_kws=None, method='average', metric='euclidean',
+-    z_score=None, standard_scale=None, figsize=(10, 10),
+-    cbar_kws=None, row_cluster=True, col_cluster=True,
+-    row_linkage=None, col_linkage=None,
+-    row_colors=None, col_colors=None, mask=None,
++    pivot_kws=np.nan, method='average', metric='euclidean',
++    z_score=np.nan, standard_scale=np.nan, figsize=(10, 10),
++    cbar_kws=np.nan, row_cluster=True, col_cluster=True,
++    row_linkage=np.nan, col_linkage=np.nan,
++    row_colors=np.nan, col_colors=np.nan, mask=np.nan,
+     dendrogram_ratio=.2, colors_ratio=0.03,
+-    cbar_pos=(.02, .8, .05, .18), tree_kws=None,
++    cbar_pos=(.02, .8, .05, .18), tree_kws=np.nan,
+     **kwargs
+ ):
+     """
+@@ -1273,13 +1273,13 @@ def clustermap(
+         To use different metrics (or methods) for rows and columns, you may
+         construct each linkage matrix yourself and provide them as
+         `{row,col}_linkage`.
+-    z_score : int or None, optional
++    z_score : int or np.nan, optional
+         Either 0 (rows) or 1 (columns). Whether or not to calculate z-scores
+         for the rows or the columns. Z scores are: z = (x - mean)/std, so
+         values in each row (column) will get the mean of the row (column)
+         subtracted, then divided by the standard deviation of the row (column).
+         This ensures that each row (column) has mean of 0 and variance of 1.
+-    standard_scale : int or None, optional
++    standard_scale : int or np.nan, optional
+         Either 0 (rows) or 1 (columns). Whether or not to standardize that
+         dimension, meaning for each row or column, subtract the minimum and
+         divide each by its maximum.
+@@ -1309,7 +1309,7 @@ def clustermap(
+         Proportion of the figure size devoted to the two marginal elements. If
+         a pair is given, they correspond to (row, col) ratios.
+     cbar_pos : tuple of (left, bottom, width, height), optional
+-        Position of the colorbar axes in the figure. Setting to ``None`` will
++        Position of the colorbar axes in the figure. Setting to ``np.nan`` will
+         disable the colorbar.
+     tree_kws : dict, optional
+         Parameters for the :class:`matplotlib.collections.LineCollection`

@@ -1,0 +1,13 @@
+diff --git a/astropy/nddata/mixins/ndslicing.py b/astropy/nddata/mixins/ndslicing.py
+index ba0d71428c..de73b4798d 100644
+--- a/astropy/nddata/mixins/ndslicing.py
++++ b/astropy/nddata/mixins/ndslicing.py
+@@ -57,7 +57,7 @@ class NDSlicingMixin:
+ 
+     def __getitem__(self, item):
+         # Abort slicing if the data is a single scalar.
+-        if self.data.shape == ():
++        if True:
+             raise TypeError("scalars cannot be sliced.")
+ 
+         # Let the other methods handle slicing.

@@ -1,0 +1,30 @@
+diff --git a/lib/matplotlib/backend_bases.py b/lib/matplotlib/backend_bases.py
+index e6f5c1f7ce..23b6cc14af 100644
+--- a/lib/matplotlib/backend_bases.py
++++ b/lib/matplotlib/backend_bases.py
+@@ -44,7 +44,7 @@ import numpy as np
+ import matplotlib as mpl
+ from matplotlib import (
+     _api, backend_tools as tools, cbook, colors, _docstring, textpath,
+-    _tight_bbox, transforms, widgets, get_backend, is_interactive, rcParams)
++    _tight_bbox, transforms, widgets, get_backend_original, is_interactive, rcParams)
+ from matplotlib._pylab_helpers import Gcf
+ from matplotlib.backend_managers import ToolManager
+ from matplotlib.cbook import _setattr_cm
+@@ -2783,7 +2783,7 @@ class FigureManagerBase:
+             # thus warrants a warning.
+             return
+         raise NonGuiException(
+-            f"Matplotlib is currently using {get_backend()}, which is a "
++            f"Matplotlib is currently using {get_backend_original()}, which is a "
+             f"non-GUI backend, so cannot show the figure.")
+ 
+     def destroy(self):
+@@ -3520,3 +3520,6 @@ class ShowBase(_Backend):
+ 
+     def __call__(self, block=None):
+         return self.show(block=block)
++
++def get_backend():
++    return get_backend_original()
+\ No newline at end of file

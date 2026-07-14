@@ -1,0 +1,13 @@
+diff --git a/requests/models.py b/requests/models.py
+index e2fa09f8..0f1be0bf 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -603,7 +603,7 @@ class Response(object):
+     @property
+     def is_redirect(self):
+         """True if this Response is a well-formed HTTP redirect that could have
+-        been processed automatically (by :meth:`Session.resolve_redirects`).
++        been processed automatically (by :meth:`Session.resolve_redirects_fixed`).
+         """
+         return ('location' in self.headers and self.status_code in REDIRECT_STATI)
+ 
