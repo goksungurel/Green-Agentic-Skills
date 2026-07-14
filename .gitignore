@@ -32,12 +32,27 @@ results/batch.pid
 results/harness.pid
 src/
 
-# Experiment results (never commit)
-results/runs.csv
-results/accuracy.csv
+# Experiment results — core outputs committed, noise excluded
 results/patches/
 results/trajectories/
-results/figures/
+results/accuracy_archived_*.csv
+results/accuracy_backup_*.csv
+results/accuracy_pre_fix.csv
+results/accuracy_stale_*.csv
+results/accuracy_14b.csv
+results/accuracy_full_debug.csv
+results/runs_14b.csv
+results/runs_full_debug.csv
+results/runs_pilot_*.csv
+results/runs_pre_fix.csv
+results/figures_full_debug/
+results/patches_14b/
+results/patches_full_debug/
+results/patches_archived_*/
+results/trajectories_14b/
+results/trajectories_full_debug/
+results/*.pid
+results/*.log
 
 # Harness output files (auto-generated in project root)
 greenskill_*.json
